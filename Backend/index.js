@@ -48,13 +48,13 @@ function requireAuth(req, res, next) {
 }
 
 // ---- Utils ----
-const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
   "image/png",
   "image/jpeg",
   "application/pdf",
   "video/mp4",
-  // add more as you support them
+  "video/quicktime",
 ]);
 
 // ---- Routes ----

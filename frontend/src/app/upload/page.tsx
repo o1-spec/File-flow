@@ -253,19 +253,25 @@ export default function UploadPage() {
       {uploadStatus !== "idle" && (
         <>
           <div className="steps" style={{ marginTop: 28 }}>
-            {STEPS.map((label, i) => (
-              <React.Fragment key={label}>
-                {i > 0 && (
-                  <div className={`step-connector${currentStep > i - 1 ? " done" : ""}`} />
-                )}
-                <div className={`step${currentStep === i ? " active" : ""}${currentStep > i ? " done" : ""}`}>
-                  <div className="step-circle">
-                    {currentStep > i ? "✓" : i + 1}
+            {STEPS.map((label, i) => {
+              const isDone = uploadStatus === "PROCESSED"
+                ? true                // all steps green when fully processed
+                : currentStep > i;
+              const isActive = !isDone && currentStep === i;
+              return (
+                <React.Fragment key={label}>
+                  {i > 0 && (
+                    <div className={`step-connector${(uploadStatus === "PROCESSED" || currentStep > i - 1) ? " done" : ""}`} />
+                  )}
+                  <div className={`step${isActive ? " active" : ""}${isDone ? " done" : ""}`}>
+                    <div className="step-circle">
+                      {isDone ? "✓" : i + 1}
+                    </div>
+                    <span className="step-label">{label}</span>
                   </div>
-                  <span className="step-label">{label}</span>
-                </div>
-              </React.Fragment>
-            ))}
+                </React.Fragment>
+              );
+            })}
           </div>
 
           {/* Current status badge */}
