@@ -526,3 +526,152 @@ h3 { font-size: 1.125rem; }
 .gap-2 { gap: 8px; }
 .w-full { width: 100%; }
 
+/* ── Upload page — multi-file ───────────────────────────── */
+
+/* Page header row with action buttons */
+.up-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.up-header h2 { margin-bottom: 4px; }
+.up-header .subtitle { color: var(--text-secondary); font-size: 0.875rem; }
+.up-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-top: 4px; }
+
+/* File queue list */
+.fq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Summary bar above the list */
+.fq-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Individual file row */
+.fq-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: border-color var(--transition);
+}
+.fq-item.fq-done  { border-color: rgba(34,197,94,0.25);  }
+.fq-item.fq-failed{ border-color: rgba(239,68,68,0.25);  }
+
+/* Row header: icon + name/size + badge + remove */
+.fq-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fq-icon { font-size: 1.4rem; flex-shrink: 0; }
+.fq-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fq-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fq-size { font-size: 0.78rem; color: var(--text-secondary); }
+.fq-remove { margin-left: 4px; flex-shrink: 0; }
+
+/* Progress bar */
+.fq-progress-track {
+  position: relative;
+  height: 3px;
+  background: var(--bg-elevated);
+  border-radius: 99px;
+  margin-top: 12px;
+  overflow: visible;
+}
+.fq-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.2s ease;
+}
+.fq-progress-pct {
+  position: absolute;
+  right: 0;
+  top: -18px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Steps inside each row — full labels (reuses .steps from global) */
+.fq-steps-full {
+  margin-top: 16px;
+}
+
+/* Compact steps (hidden labels) — kept for reference, not used now */
+.fq-steps {
+  display: flex;
+  align-items: center;
+  margin-top: 14px;
+}
+.fq-steps .step { font-size: 0.75rem; }
+.fq-steps .step-circle { width: 22px; height: 22px; font-size: 0.65rem; }
+.fq-steps .step-label { display: none; }
+
+/* Polling hint */
+.fq-polling-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Failed step circle */
+.step.failed .step-circle {
+  border-color: var(--red);
+  color: #fff;
+  background: var(--red);
+}
+
+/* Alert inside a row */
+.fq-alert { margin-top: 12px; font-size: 0.8rem; }
+
+/* Toggle / remove buttons in header */
+.fq-toggle { flex-shrink: 0; font-size: 0.7rem; padding: 4px 8px; }
+
+/* Download button inside a row */
+.fq-download {
+  margin-top: 14px;
+  width: 100%;
+}
+
+/* Record details panel */
+.fq-record {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.fq-record-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+

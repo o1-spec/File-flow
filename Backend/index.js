@@ -15,7 +15,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { s3 } from "./src/s3.js";
-import { processingQueue } from "./src/queue.js";
+import { enqueueUpload } from "./src/queue.js";
 
 dotenv.config();
 
@@ -195,7 +195,7 @@ app.post("/uploads/complete", requireAuth, async (req, res) => {
   }
 
   const existing = await pool.query(
-    `SELECT id, user_id, status, raw_key, processed_key, error_message
+    `SELECT id, user_id, status, raw_key, mime_type, processed_key, error_message
      FROM uploads
      WHERE id = $1`,
     [uploadId]
@@ -251,20 +251,11 @@ app.post("/uploads/complete", requireAuth, async (req, res) => {
 
   // Enqueue if we transitioned
   if (updated.rowCount > 0) {
-    await processingQueue.add(
-      "process-upload",
-      {
-        uploadId,
-        rawKey: record.raw_key,
-        mimeType: record.mime_type,
-      },
-      {
-        attempts: 5,
-        backoff: { type: "exponential", delay: 2000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      }
-    );
+    await enqueueUpload({
+      uploadId,
+      rawKey: record.raw_key,
+      mimeType: record.mime_type,
+    });
     return res.json(updated.rows[0]);
   }
 
