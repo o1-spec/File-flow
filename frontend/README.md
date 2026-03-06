@@ -1,4 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FileFlow — Frontend
+
+Next.js 16 + React 19 + TypeScript frontend for the FileFlow file processing pipeline.
+
+> For full project documentation, architecture diagrams, API reference, and run instructions see the **[root README](../README.md)**.
+
+## Quick start
+
+```bash
+npm install
+npm run dev
+```
+
+Opens at `http://localhost:3000`.  
+Backend must be running at `http://localhost:4000`.
+
+## Pages
+
+| Route | Description |
+|---|---|
+| `/` | Landing page |
+| `/register` | Create an account |
+| `/login` | Sign in — stores JWT in `localStorage` |
+| `/upload` | Upload, process and download files |
+
 
 ## Getting Started
 
