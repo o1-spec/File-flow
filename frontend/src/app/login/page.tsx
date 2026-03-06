@@ -21,7 +21,7 @@ export default function LoginPage() {
       const res = await api.login(email, password);
       const token = res.token || res.accessToken || res.access_token;
       if (!token) throw new Error("No token returned from server.");
-      localStorage.setItem("token", token);
+      localStorage.setItem("token", String(token));
       router.push("/upload");
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
