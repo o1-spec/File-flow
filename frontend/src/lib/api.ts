@@ -13,15 +13,20 @@ function authHeaders(): Record<string, string> {
 
 async function handleJSONResponse(res: Response) {
   const text = await res.text();
+  let json: Record<string, unknown> = {};
+
   try {
-    const json = text ? JSON.parse(text) : {};
-    if (!res.ok) throw json;
-    return json;
-  } catch (err) {
-    // If not JSON or other error
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    // body is not JSON
     if (!res.ok) throw { message: text || res.statusText };
     return {};
   }
+
+  // Throw the parsed JSON so callers see { error: "..." } from the backend
+  if (!res.ok) throw json;
+
+  return json;
 }
 
 export async function register(email: string, password: string) {

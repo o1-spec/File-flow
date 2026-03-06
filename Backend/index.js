@@ -253,7 +253,11 @@ app.post("/uploads/complete", requireAuth, async (req, res) => {
   if (updated.rowCount > 0) {
     await processingQueue.add(
       "process-upload",
-      { uploadId },
+      {
+        uploadId,
+        rawKey: record.raw_key,
+        mimeType: record.mime_type,
+      },
       {
         attempts: 5,
         backoff: { type: "exponential", delay: 2000 },

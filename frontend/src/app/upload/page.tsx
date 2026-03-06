@@ -130,8 +130,8 @@ export default function UploadPage() {
       // 1 — /uploads/start
       setUploadStatus("uploading");
       const start = await api.startUpload({ filename: file.name, mimeType: file.type, size: file.size });
-      const presignedUrl: string = start.presignedUrl || start.presigned_url || start.url;
-      const newId: string = start.uploadId || start.upload_id || start.id;
+      const presignedUrl = (start.presignedUrl || start.presigned_url || start.url) as string;
+      const newId = (start.uploadId || start.upload_id || start.id) as string;
       if (!presignedUrl || !newId) throw new Error("startUpload did not return presignedUrl or uploadId");
       setUploadId(newId);
 
@@ -150,7 +150,8 @@ export default function UploadPage() {
       // polling effect starts from here
     } catch (e: unknown) {
       const err = e as Record<string, unknown>;
-      setError((err?.message as string) || JSON.stringify(e));
+      // backend errors use { error: "..." }; network errors use .message
+      setError((err?.error as string) || (err?.message as string) || JSON.stringify(e));
       setUploadStatus("error");
     } finally {
       setBusy(false);
@@ -162,12 +163,14 @@ export default function UploadPage() {
     if (!uploadId) return;
     try {
       const res = await api.getDownload(uploadId);
-      const url: string = res.downloadUrl || res.url || res.download_url;
-      if (!url) throw new Error("No download URL returned");
+      // backend returns { uploadId, downloadUrl, expiresInSeconds }
+      const url: string = res.downloadUrl as string;
+      if (!url) throw new Error("No downloadUrl returned from server");
       window.open(url, "_blank");
     } catch (e: unknown) {
       const err = e as Record<string, unknown>;
-      setError((err?.message as string) || "Download failed");
+      // backend error shape is { error: "..." }; fallback to message
+      setError((err?.error as string) || (err?.message as string) || "Download failed");
     }
   }
 
