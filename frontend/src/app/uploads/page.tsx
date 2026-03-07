@@ -153,9 +153,20 @@ export default function UploadsPage() {
   async function handleDownload(upload: Upload) {
     setDownloadingId(upload.id);
     try {
-      const res = await api.getDownload(upload.id);
-      const url = (res as Record<string, unknown>).url as string;
-      window.open(url, "_blank");
+      const token = localStorage.getItem("token") ?? "";
+      const res = await fetch(`http://localhost:4000/uploads/${upload.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = upload.original_filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
     } catch {
       showToast("Download failed", false);
     } finally {

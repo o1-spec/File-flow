@@ -384,12 +384,13 @@ app.post("/uploads/complete", requireAuth, async (req, res) => {
   return res.json(again.rows[0]);
 });
 
-// Download processed output (owner-only): presigned GET URL
+// Download processed output (owner-only): streams file through backend so
+// the browser receives it as a same-origin response and triggers a save dialog.
 app.get("/uploads/:id/download", requireAuth, async (req, res) => {
   const { id } = req.params;
 
   const result = await pool.query(
-    `SELECT id, status, processed_key
+    `SELECT id, status, processed_key, original_filename, mime_type
      FROM uploads
      WHERE id = $1 AND user_id = $2`,
     [id, req.user.userId]
@@ -414,18 +415,28 @@ app.get("/uploads/:id/download", requireAuth, async (req, res) => {
     });
   }
 
-  const cmd = new GetObjectCommand({
-    Bucket: process.env.S3_BUCKET,
-    Key: upload.processed_key,
-  });
+  try {
+    const cmd = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: upload.processed_key,
+    });
 
-  const downloadUrl = await getSignedUrl(s3, cmd, { expiresIn: 600 });
+    const s3Res = await s3.send(cmd);
 
-  return res.json({
-    uploadId: upload.id,
-    downloadUrl,
-    expiresInSeconds: 600,
-  });
+    const filename = encodeURIComponent(upload.original_filename ?? "download");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${filename}`);
+    res.setHeader("Content-Type", upload.mime_type ?? "application/octet-stream");
+    if (s3Res.ContentLength) {
+      res.setHeader("Content-Length", s3Res.ContentLength);
+    }
+
+    s3Res.Body.pipe(res);
+  } catch (err) {
+    logger.error("Download stream error", { id, err: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream file" });
+    }
+  }
 });
 
 // ── Admin routes ─────────────────────────────────────────────────────────────

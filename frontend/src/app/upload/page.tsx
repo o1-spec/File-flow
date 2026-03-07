@@ -214,10 +214,21 @@ export default function UploadPage() {
   /* ── Download ──────────────────────────────────────────── */
   async function handleDownload(uploadId: string, localId: string) {
     try {
-      const res = await api.getDownload(uploadId);
-      const url = res.downloadUrl as string;
-      if (!url) throw new Error("No downloadUrl returned");
-      window.open(url, "_blank");
+      const entry = entries.find((e) => e.localId === localId);
+      const token = localStorage.getItem("token") ?? "";
+      const res = await fetch(`http://localhost:4000/uploads/${uploadId}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = entry?.file.name ?? "download";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
     } catch (e: unknown) {
       const err = e as Record<string, unknown>;
       patch(localId, {
