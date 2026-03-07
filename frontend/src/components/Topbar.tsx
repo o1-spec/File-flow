@@ -37,6 +37,12 @@ export default function Topbar() {
             >
               Upload
             </Link>
+            <Link
+              href="/admin"
+              className={`nav-link${pathname === "/admin" ? " active" : ""}`}
+            >
+              Dashboard
+            </Link>
             <button
               onClick={handleLogout}
               className="btn btn-ghost btn-sm"

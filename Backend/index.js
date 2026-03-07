@@ -15,7 +15,10 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { s3 } from "./src/s3.js";
-import { enqueueUpload } from "./src/queue.js";
+import { enqueueUpload, imageQueue, pdfQueue, videoQueue } from "./src/queue.js";
+import { dlqQueue } from "./src/dlq.js";
+import { logger } from "./src/logger.js";
+import Redis from "ioredis";
 
 dotenv.config();
 
@@ -26,6 +29,8 @@ app.use(express.json());
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+
+const redis = new Redis(process.env.REDIS_URL);
 
 // ---- Auth middleware ----
 function requireAuth(req, res, next) {
@@ -256,6 +261,7 @@ app.post("/uploads/complete", requireAuth, async (req, res) => {
       rawKey: record.raw_key,
       mimeType: record.mime_type,
     });
+    logger.info("upload.enqueued", { uploadId, mimeType: record.mime_type, userId: req.user.userId });
     return res.json(updated.rows[0]);
   }
 
@@ -314,5 +320,128 @@ app.get("/uploads/:id/download", requireAuth, async (req, res) => {
   });
 });
 
+// ── Admin routes ─────────────────────────────────────────────────────────────
+// All admin endpoints require auth. In production you'd add a separate role
+// check here; for now any valid JWT is sufficient.
+
+// GET /admin/metrics — queue depths + worker metrics snapshot from Redis
+app.get("/admin/metrics", requireAuth, async (req, res) => {
+  try {
+    // Only count "live" states — completed jobs are removed immediately so
+    // asking for "completed" would always return 0 and be misleading.
+    const LIVE_STATES = ["waiting", "active", "failed", "delayed", "paused"];
+
+    const [imgCounts, pdfCounts, vidCounts, dlqCounts] = await Promise.all([
+      imageQueue.getJobCounts(...LIVE_STATES),
+      pdfQueue.getJobCounts(...LIVE_STATES),
+      videoQueue.getJobCounts(...LIVE_STATES),
+      dlqQueue.getJobCounts("waiting", "active", "failed"),
+    ]);
+
+    // Worker metrics published by worker process every 10 s
+    const workerMetricsRaw = await redis.get("worker:metrics");
+    const workerMetrics = workerMetricsRaw ? JSON.parse(workerMetricsRaw) : null;
+
+    // Worker heartbeat — if older than 30 s, worker is likely down
+    const heartbeatRaw = await redis.get("worker:heartbeat");
+    const workerAlive = heartbeatRaw
+      ? Date.now() - Number(heartbeatRaw) < 30_000
+      : false;
+
+    res.json({
+      queues: {
+        image: imgCounts,
+        pdf:   pdfCounts,
+        video: vidCounts,
+        dlq:   dlqCounts,
+      },
+      worker: {
+        alive:     workerAlive,
+        lastSeen:  heartbeatRaw ? new Date(Number(heartbeatRaw)).toISOString() : null,
+        metrics:   workerMetrics,
+      },
+    });
+  } catch (err) {
+    logger.error("admin.metrics_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch metrics" });
+  }
+});
+
+// GET /admin/failed — last 50 failed uploads from the DB
+app.get("/admin/failed", requireAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit ?? 50), 200);
+    const result = await pool.query(
+      `SELECT id, user_id, original_filename, mime_type, size_bytes,
+              status, error_message, created_at, updated_at
+       FROM uploads
+       WHERE status = 'FAILED'
+       ORDER BY updated_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    res.json({ failed: result.rows, total: result.rowCount });
+  } catch (err) {
+    logger.error("admin.failed_query_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch failed uploads" });
+  }
+});
+
+// GET /admin/dlq — inspect DLQ jobs (last 50)
+app.get("/admin/dlq", requireAuth, async (req, res) => {
+  try {
+    const jobs = await dlqQueue.getJobs(["waiting"], 0, 49);
+    res.json({
+      dlq: jobs.map((j) => ({
+        dlqJobId:      j.id,
+        originalQueue: j.data.originalQueue,
+        originalJobId: j.data.originalJobId,
+        uploadId:      j.data.payload?.uploadId,
+        mimeType:      j.data.payload?.mimeType,
+        failedAt:      j.data.failedAt,
+        errorMessage:  j.data.errorMessage,
+        attemptsMade:  j.data.attemptsMade,
+      })),
+    });
+  } catch (err) {
+    logger.error("admin.dlq_query_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch DLQ" });
+  }
+});
+
+// POST /admin/dlq/:jobId/replay — re-enqueue a DLQ job
+app.post("/admin/dlq/:jobId/replay", requireAuth, async (req, res) => {
+  const { jobId } = req.params;
+  try {
+    const job = await dlqQueue.getJob(jobId);
+    if (!job) return res.status(404).json({ error: "DLQ job not found" });
+
+    const { uploadId, rawKey, mimeType } = job.data.payload ?? {};
+    if (!uploadId || !mimeType) {
+      return res.status(400).json({ error: "DLQ job payload is incomplete" });
+    }
+
+    // Reset the upload status back to UPLOADED so the worker will pick it up
+    await pool.query(
+      `UPDATE uploads SET status = 'UPLOADED', error_message = NULL, updated_at = NOW()
+       WHERE id = $1`,
+      [uploadId]
+    );
+
+    await enqueueUpload({ uploadId, rawKey, mimeType });
+
+    // Remove from DLQ
+    await job.remove();
+
+    logger.info("admin.replay", { uploadId, mimeType, replayedBy: req.user.userId });
+    res.json({ ok: true, uploadId, message: "Re-enqueued for processing" });
+  } catch (err) {
+    logger.error("admin.replay_failed", { jobId, error: err.message });
+    res.status(500).json({ error: "Replay failed" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`API running on ${PORT}`));
+app.listen(PORT, () => {
+  logger.info("api.started", { port: PORT, pid: process.pid });
+});

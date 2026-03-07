@@ -85,6 +85,37 @@ export function logout() {
   if (typeof window !== 'undefined') localStorage.removeItem('token');
 }
 
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+export async function getAdminMetrics() {
+  const res = await fetch(`${BASE}/admin/metrics`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getAdminFailed(limit = 50) {
+  const res = await fetch(`${BASE}/admin/failed?limit=${limit}`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getAdminDLQ() {
+  const res = await fetch(`${BASE}/admin/dlq`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function replayDLQJob(jobId: string) {
+  const res = await fetch(`${BASE}/admin/dlq/${encodeURIComponent(jobId)}/replay`, {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
 export default {
   register,
   login,
@@ -93,4 +124,8 @@ export default {
   getUpload,
   getDownload,
   logout,
+  getAdminMetrics,
+  getAdminFailed,
+  getAdminDLQ,
+  replayDLQJob,
 };
