@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   HeadObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -428,8 +429,103 @@ app.get("/uploads/:id/download", requireAuth, async (req, res) => {
 });
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
-// All admin endpoints require auth. In production you'd add a separate role
-// check here; for now any valid JWT is sufficient.
+
+// GET /uploads — all uploads for the logged-in user
+app.get("/uploads", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, original_filename, mime_type, size_bytes,
+              status, processed_key, error_message, created_at, updated_at
+       FROM uploads
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.userId]
+    );
+    res.json({ uploads: result.rows });
+  } catch (err) {
+    logger.error("uploads.list_failed", { error: err.message, userId: req.user.userId });
+    res.status(500).json({ error: "Failed to fetch uploads" });
+  }
+});
+
+// DELETE /uploads/:id — owner deletes their upload (raw + processed files + DB row)
+app.delete("/uploads/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `SELECT id, user_id, raw_key, processed_key FROM uploads WHERE id = $1`,
+    [id]
+  );
+
+  if (result.rowCount === 0) return res.status(404).json({ error: "Upload not found" });
+
+  const upload = result.rows[0];
+  if (upload.user_id !== req.user.userId) {
+    return res.status(404).json({ error: "Upload not found" }); // don't leak existence
+  }
+
+  // Delete files from MinIO — non-fatal if already gone
+  const keysToDelete = [upload.raw_key, upload.processed_key].filter(Boolean);
+  await Promise.allSettled(
+    keysToDelete.map((key) =>
+      s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }))
+    )
+  );
+
+  await pool.query(`DELETE FROM uploads WHERE id = $1`, [id]);
+
+  logger.info("upload.deleted", { uploadId: id, userId: req.user.userId });
+  res.json({ ok: true });
+});
+
+// GET /admin/uploads — all uploads across all users (admin only)
+app.get("/admin/uploads", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const page  = Math.max(1, Number(req.query.page  ?? 1));
+    const limit = Math.min(Number(req.query.limit ?? 50), 200);
+    const offset = (page - 1) * limit;
+    const status = req.query.status ?? null; // optional filter
+
+    const values = status
+      ? [limit, offset, status]
+      : [limit, offset];
+
+    const whereClause = status ? `WHERE u.status = $3` : "";
+
+    const result = await pool.query(
+      `SELECT u.id,
+              usr.email        AS user_email,
+              u.original_filename,
+              u.mime_type,
+              u.size_bytes,
+              u.status,
+              u.error_message,
+              u.created_at,
+              u.updated_at
+       FROM uploads u
+       JOIN users usr ON u.user_id = usr.id
+       ${whereClause}
+       ORDER BY u.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      values
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM uploads u ${whereClause}`,
+      status ? [status] : []
+    );
+
+    res.json({
+      uploads: result.rows,
+      total: Number(countResult.rows[0].count),
+      page,
+      limit,
+    });
+  } catch (err) {
+    logger.error("admin.uploads_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch uploads" });
+  }
+});
 
 // GET /admin/metrics — queue depths + worker metrics snapshot from Redis
 app.get("/admin/metrics", requireAuth, requireAdmin, async (req, res) => {
@@ -513,6 +609,102 @@ app.get("/admin/dlq", requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     logger.error("admin.dlq_query_failed", { error: err.message });
     res.status(500).json({ error: "Failed to fetch DLQ" });
+  }
+});
+
+// DELETE /admin/uploads/:id — admin hard-deletes any upload (MinIO + DB)
+app.delete("/admin/uploads/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, raw_key, processed_key, original_filename FROM uploads WHERE id = $1`,
+      [id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: "Upload not found" });
+
+    const upload = result.rows[0];
+    const keysToDelete = [upload.raw_key, upload.processed_key].filter(Boolean);
+    await Promise.allSettled(
+      keysToDelete.map((key) =>
+        s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }))
+      )
+    );
+    await pool.query(`DELETE FROM uploads WHERE id = $1`, [id]);
+    logger.info("admin.upload_deleted", {
+      uploadId: id,
+      filename: upload.original_filename,
+      deletedBy: req.user.email,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error("admin.delete_failed", { uploadId: id, error: err.message });
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+// GET /admin/uploads/:id — full detail + presigned raw & processed URLs
+app.get("/admin/uploads/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT u.id, usr.email AS user_email, u.original_filename, u.mime_type,
+              u.size_bytes, u.status, u.error_message,
+              u.raw_key, u.processed_key, u.created_at, u.updated_at
+       FROM uploads u
+       JOIN users usr ON u.user_id = usr.id
+       WHERE u.id = $1`,
+      [id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: "Upload not found" });
+
+    const upload = result.rows[0];
+
+    // Generate presigned URLs valid for 15 min each (best-effort — key may not exist yet)
+    async function presign(key) {
+      if (!key) return null;
+      try {
+        return await getSignedUrl(
+          s3,
+          new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }),
+          { expiresIn: 900 }
+        );
+      } catch { return null; }
+    }
+
+    const [rawUrl, processedUrl] = await Promise.all([
+      presign(upload.raw_key),
+      presign(upload.processed_key),
+    ]);
+
+    res.json({ upload, rawUrl, processedUrl });
+  } catch (err) {
+    logger.error("admin.upload_detail_failed", { uploadId: id, error: err.message });
+    res.status(500).json({ error: "Failed to fetch upload detail" });
+  }
+});
+
+// GET /admin/users — all users with upload stats
+app.get("/admin/users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         u.id,
+         u.email,
+         u.created_at AS joined_at,
+         COUNT(up.id)::int                                          AS total_uploads,
+         COUNT(up.id) FILTER (WHERE up.status = 'PROCESSED')::int  AS processed_uploads,
+         COUNT(up.id) FILTER (WHERE up.status = 'FAILED')::int     AS failed_uploads,
+         COALESCE(SUM(up.size_bytes) FILTER (WHERE up.size_bytes IS NOT NULL), 0)::bigint AS storage_bytes,
+         MAX(up.created_at)                                         AS last_upload_at
+       FROM users u
+       LEFT JOIN uploads up ON up.user_id = u.id
+       GROUP BY u.id, u.email, u.created_at
+       ORDER BY u.created_at DESC`
+    );
+    res.json({ users: result.rows, total: result.rowCount });
+  } catch (err) {
+    logger.error("admin.users_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 

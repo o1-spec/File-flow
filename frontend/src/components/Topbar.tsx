@@ -47,6 +47,12 @@ export default function Topbar() {
               >
                 Upload
               </Link>
+              <Link
+                href="/uploads"
+                className={`nav-link${pathname === "/uploads" ? " active" : ""}`}
+              >
+                My Files
+              </Link>
               {isAdmin && (
                 <Link
                   href="/admin"

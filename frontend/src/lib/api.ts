@@ -81,6 +81,21 @@ export async function getDownload(uploadId: string) {
   return handleJSONResponse(res);
 }
 
+export async function getMyUploads() {
+  const res = await fetch(`${BASE}/uploads`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function deleteUpload(uploadId: string) {
+  const res = await fetch(`${BASE}/uploads/${encodeURIComponent(uploadId)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
 export function logout() {
   if (typeof window !== 'undefined') localStorage.removeItem('token');
 }
@@ -116,6 +131,37 @@ export async function replayDLQJob(jobId: string) {
   return handleJSONResponse(res);
 }
 
+export async function getAdminUploads(page = 1, limit = 50, status?: string) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (status) params.set('status', status);
+  const res = await fetch(`${BASE}/admin/uploads?${params}`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getAdminUploadDetail(uploadId: string) {
+  const res = await fetch(`${BASE}/admin/uploads/${encodeURIComponent(uploadId)}`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function deleteAdminUpload(uploadId: string) {
+  const res = await fetch(`${BASE}/admin/uploads/${encodeURIComponent(uploadId)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getAdminUsers() {
+  const res = await fetch(`${BASE}/admin/users`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
 export default {
   register,
   login,
@@ -123,9 +169,15 @@ export default {
   completeUpload,
   getUpload,
   getDownload,
+  getMyUploads,
+  deleteUpload,
   logout,
   getAdminMetrics,
   getAdminFailed,
   getAdminDLQ,
   replayDLQJob,
+  getAdminUploads,
+  getAdminUploadDetail,
+  deleteAdminUpload,
+  getAdminUsers,
 };
