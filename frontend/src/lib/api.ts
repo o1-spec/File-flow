@@ -12,6 +12,19 @@ function authHeaders(): Record<string, string> {
 }
 
 async function handleJSONResponse(res: Response) {
+  // Expired / invalid token — clear session and send to login
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('isAdmin');
+      // Avoid redirect loop on the login/register pages themselves
+      const path = window.location.pathname;
+      if (path !== '/login' && path !== '/register') {
+        window.location.href = '/login';
+      }
+    }
+  }
+
   const text = await res.text();
   let json: Record<string, unknown> = {};
 
@@ -81,6 +94,29 @@ export async function getDownload(uploadId: string) {
   return handleJSONResponse(res);
 }
 
+export async function getUploadPreview(uploadId: string) {
+  const res = await fetch(`${BASE}/uploads/${encodeURIComponent(uploadId)}/preview`, {
+    method: 'GET',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getMyUploads() {
+  const res = await fetch(`${BASE}/uploads`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function deleteUpload(uploadId: string) {
+  const res = await fetch(`${BASE}/uploads/${encodeURIComponent(uploadId)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
 export function logout() {
   if (typeof window !== 'undefined') localStorage.removeItem('token');
 }
@@ -116,6 +152,37 @@ export async function replayDLQJob(jobId: string) {
   return handleJSONResponse(res);
 }
 
+export async function getAdminUploads(page = 1, limit = 50, status?: string) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (status) params.set('status', status);
+  const res = await fetch(`${BASE}/admin/uploads?${params}`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getAdminUploadDetail(uploadId: string) {
+  const res = await fetch(`${BASE}/admin/uploads/${encodeURIComponent(uploadId)}`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function deleteAdminUpload(uploadId: string) {
+  const res = await fetch(`${BASE}/admin/uploads/${encodeURIComponent(uploadId)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
+export async function getAdminUsers() {
+  const res = await fetch(`${BASE}/admin/users`, {
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
 export default {
   register,
   login,
@@ -123,9 +190,16 @@ export default {
   completeUpload,
   getUpload,
   getDownload,
+  getUploadPreview,
+  getMyUploads,
+  deleteUpload,
   logout,
   getAdminMetrics,
   getAdminFailed,
   getAdminDLQ,
   replayDLQJob,
+  getAdminUploads,
+  getAdminUploadDetail,
+  deleteAdminUpload,
+  getAdminUsers,
 };

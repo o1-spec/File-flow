@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   HeadObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -50,6 +51,26 @@ function requireAuth(req, res, next) {
   } catch {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
+}
+
+// ---- Admin middleware ----
+// ADMIN_EMAILS is a comma-separated list of email addresses in .env.
+// Any authenticated user whose email appears in that list is an admin.
+// Example:  ADMIN_EMAILS=alice@example.com,bob@example.com
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function requireAdmin(req, res, next) {
+  // Must be called after requireAuth so req.user is populated
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  if (!ADMIN_EMAILS.has(req.user.email?.toLowerCase())) {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
 }
 
 // ---- Utils ----
@@ -111,13 +132,15 @@ app.post("/auth/login", async (req, res) => {
 
   if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
+  const isAdmin = ADMIN_EMAILS.has(user.email.toLowerCase());
+
   const token = jwt.sign(
-    { userId: user.id, email: user.email },
+    { userId: user.id, email: user.email, isAdmin },
     process.env.JWT_SECRET,
     { expiresIn: "1h" }
   );
 
-  res.json({ token });
+  res.json({ token, isAdmin });
 });
 
 // ---------- UPLOADS ----------
@@ -189,6 +212,91 @@ app.get("/uploads/:id", requireAuth, async (req, res) => {
   }
 
   res.json(result.rows[0]);
+});
+
+// SSE status stream — client subscribes once and receives push events until terminal
+// GET /uploads/:id/stream
+// Auth via ?token=<jwt> because EventSource cannot set custom headers.
+app.get("/uploads/:id/stream", async (req, res) => {
+  // ── Auth via query param ──────────────────────────────────────────────────
+  const token = req.query.token;
+  if (!token) return res.status(401).json({ error: "token query param required" });
+
+  let userId;
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    userId = payload.userId;
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  const { id } = req.params;
+
+  // ── SSE headers ───────────────────────────────────────────────────────────
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering
+  res.flushHeaders();
+
+  const TERMINAL = new Set(["PROCESSED", "FAILED"]);
+  const INTERVAL_MS = 1500;
+
+  function send(data) {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  }
+
+  // ── Poll Postgres and push changes ────────────────────────────────────────
+  let lastStatus = null;
+  let timer = null;
+
+  async function tick() {
+    try {
+      const result = await pool.query(
+        `SELECT id, original_filename, mime_type, size_bytes, status,
+                raw_key, processed_key, error_message, created_at, updated_at
+         FROM uploads
+         WHERE id = $1 AND user_id = $2`,
+        [id, userId]
+      );
+
+      if (result.rowCount === 0) {
+        send({ error: "Upload not found" });
+        return cleanup();
+      }
+
+      const row = result.rows[0];
+
+      // Only push when status actually changes (or on first tick)
+      if (row.status !== lastStatus) {
+        lastStatus = row.status;
+        send({ upload: row });
+      }
+
+      if (TERMINAL.has(row.status)) {
+        send({ done: true });
+        return cleanup();
+      }
+    } catch (err) {
+      logger.error("sse.tick_error", { uploadId: id, error: err.message });
+      send({ error: "Internal error" });
+      cleanup();
+    }
+  }
+
+  function cleanup() {
+    if (timer) { clearInterval(timer); timer = null; }
+    res.end();
+  }
+
+  // Run first tick immediately, then on interval
+  await tick();
+  if (!res.writableEnded) {
+    timer = setInterval(tick, INTERVAL_MS);
+  }
+
+  // Clean up when the client disconnects
+  req.on("close", cleanup);
 });
 
 // Mark upload complete (owner-only): verifies object exists, marks UPLOADED, enqueues job
@@ -276,12 +384,13 @@ app.post("/uploads/complete", requireAuth, async (req, res) => {
   return res.json(again.rows[0]);
 });
 
-// Download processed output (owner-only): presigned GET URL
+// Download processed output (owner-only): streams file through backend so
+// the browser receives it as a same-origin response and triggers a save dialog.
 app.get("/uploads/:id/download", requireAuth, async (req, res) => {
   const { id } = req.params;
 
   const result = await pool.query(
-    `SELECT id, status, processed_key
+    `SELECT id, status, processed_key, original_filename, mime_type
      FROM uploads
      WHERE id = $1 AND user_id = $2`,
     [id, req.user.userId]
@@ -306,26 +415,166 @@ app.get("/uploads/:id/download", requireAuth, async (req, res) => {
     });
   }
 
-  const cmd = new GetObjectCommand({
-    Bucket: process.env.S3_BUCKET,
-    Key: upload.processed_key,
-  });
+  try {
+    const cmd = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: upload.processed_key,
+    });
 
-  const downloadUrl = await getSignedUrl(s3, cmd, { expiresIn: 600 });
+    const s3Res = await s3.send(cmd);
 
-  return res.json({
-    uploadId: upload.id,
-    downloadUrl,
-    expiresInSeconds: 600,
-  });
+    const filename = encodeURIComponent(upload.original_filename ?? "download");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${filename}`);
+    res.setHeader("Content-Type", upload.mime_type ?? "application/octet-stream");
+    if (s3Res.ContentLength) {
+      res.setHeader("Content-Length", s3Res.ContentLength);
+    }
+
+    s3Res.Body.pipe(res);
+  } catch (err) {
+    logger.error("Download stream error", { id, err: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream file" });
+    }
+  }
+});
+
+// Preview processed output (owner-only): returns a short-lived presigned URL
+// used by the browser for inline image/video preview inside the detail panel.
+app.get("/uploads/:id/preview", requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `SELECT id, status, processed_key, mime_type
+     FROM uploads
+     WHERE id = $1 AND user_id = $2`,
+    [id, req.user.userId]
+  );
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "Upload not found" });
+  }
+
+  const upload = result.rows[0];
+
+  if (upload.status !== "PROCESSED" || !upload.processed_key) {
+    return res.status(400).json({ error: "File is not processed yet" });
+  }
+
+  try {
+    const previewUrl = await getSignedUrl(
+      s3,
+      new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: upload.processed_key }),
+      { expiresIn: 900 }
+    );
+    return res.json({ previewUrl, mimeType: upload.mime_type });
+  } catch (err) {
+    logger.error("preview.presign_failed", { id, err: err.message });
+    return res.status(500).json({ error: "Failed to generate preview URL" });
+  }
 });
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
-// All admin endpoints require auth. In production you'd add a separate role
-// check here; for now any valid JWT is sufficient.
+
+// GET /uploads — all uploads for the logged-in user
+app.get("/uploads", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, original_filename, mime_type, size_bytes,
+              status, processed_key, error_message, created_at, updated_at
+       FROM uploads
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.userId]
+    );
+    res.json({ uploads: result.rows });
+  } catch (err) {
+    logger.error("uploads.list_failed", { error: err.message, userId: req.user.userId });
+    res.status(500).json({ error: "Failed to fetch uploads" });
+  }
+});
+
+// DELETE /uploads/:id — owner deletes their upload (raw + processed files + DB row)
+app.delete("/uploads/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `SELECT id, user_id, raw_key, processed_key FROM uploads WHERE id = $1`,
+    [id]
+  );
+
+  if (result.rowCount === 0) return res.status(404).json({ error: "Upload not found" });
+
+  const upload = result.rows[0];
+  if (upload.user_id !== req.user.userId) {
+    return res.status(404).json({ error: "Upload not found" }); // don't leak existence
+  }
+
+  // Delete files from MinIO — non-fatal if already gone
+  const keysToDelete = [upload.raw_key, upload.processed_key].filter(Boolean);
+  await Promise.allSettled(
+    keysToDelete.map((key) =>
+      s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }))
+    )
+  );
+
+  await pool.query(`DELETE FROM uploads WHERE id = $1`, [id]);
+
+  logger.info("upload.deleted", { uploadId: id, userId: req.user.userId });
+  res.json({ ok: true });
+});
+
+// GET /admin/uploads — all uploads across all users (admin only)
+app.get("/admin/uploads", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const page  = Math.max(1, Number(req.query.page  ?? 1));
+    const limit = Math.min(Number(req.query.limit ?? 50), 200);
+    const offset = (page - 1) * limit;
+    const status = req.query.status ?? null; // optional filter
+
+    const values = status
+      ? [limit, offset, status]
+      : [limit, offset];
+
+    const whereClause = status ? `WHERE u.status = $3` : "";
+
+    const result = await pool.query(
+      `SELECT u.id,
+              usr.email        AS user_email,
+              u.original_filename,
+              u.mime_type,
+              u.size_bytes,
+              u.status,
+              u.error_message,
+              u.created_at,
+              u.updated_at
+       FROM uploads u
+       JOIN users usr ON u.user_id = usr.id
+       ${whereClause}
+       ORDER BY u.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      values
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM uploads u ${whereClause}`,
+      status ? [status] : []
+    );
+
+    res.json({
+      uploads: result.rows,
+      total: Number(countResult.rows[0].count),
+      page,
+      limit,
+    });
+  } catch (err) {
+    logger.error("admin.uploads_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch uploads" });
+  }
+});
 
 // GET /admin/metrics — queue depths + worker metrics snapshot from Redis
-app.get("/admin/metrics", requireAuth, async (req, res) => {
+app.get("/admin/metrics", requireAuth, requireAdmin, async (req, res) => {
   try {
     // Only count "live" states — completed jobs are removed immediately so
     // asking for "completed" would always return 0 and be misleading.
@@ -368,7 +617,7 @@ app.get("/admin/metrics", requireAuth, async (req, res) => {
 });
 
 // GET /admin/failed — last 50 failed uploads from the DB
-app.get("/admin/failed", requireAuth, async (req, res) => {
+app.get("/admin/failed", requireAuth, requireAdmin, async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit ?? 50), 200);
     const result = await pool.query(
@@ -388,7 +637,7 @@ app.get("/admin/failed", requireAuth, async (req, res) => {
 });
 
 // GET /admin/dlq — inspect DLQ jobs (last 50)
-app.get("/admin/dlq", requireAuth, async (req, res) => {
+app.get("/admin/dlq", requireAuth, requireAdmin, async (req, res) => {
   try {
     const jobs = await dlqQueue.getJobs(["waiting"], 0, 49);
     res.json({
@@ -409,8 +658,104 @@ app.get("/admin/dlq", requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /admin/uploads/:id — admin hard-deletes any upload (MinIO + DB)
+app.delete("/admin/uploads/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, raw_key, processed_key, original_filename FROM uploads WHERE id = $1`,
+      [id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: "Upload not found" });
+
+    const upload = result.rows[0];
+    const keysToDelete = [upload.raw_key, upload.processed_key].filter(Boolean);
+    await Promise.allSettled(
+      keysToDelete.map((key) =>
+        s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }))
+      )
+    );
+    await pool.query(`DELETE FROM uploads WHERE id = $1`, [id]);
+    logger.info("admin.upload_deleted", {
+      uploadId: id,
+      filename: upload.original_filename,
+      deletedBy: req.user.email,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error("admin.delete_failed", { uploadId: id, error: err.message });
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+// GET /admin/uploads/:id — full detail + presigned raw & processed URLs
+app.get("/admin/uploads/:id", requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT u.id, usr.email AS user_email, u.original_filename, u.mime_type,
+              u.size_bytes, u.status, u.error_message,
+              u.raw_key, u.processed_key, u.created_at, u.updated_at
+       FROM uploads u
+       JOIN users usr ON u.user_id = usr.id
+       WHERE u.id = $1`,
+      [id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: "Upload not found" });
+
+    const upload = result.rows[0];
+
+    // Generate presigned URLs valid for 15 min each (best-effort — key may not exist yet)
+    async function presign(key) {
+      if (!key) return null;
+      try {
+        return await getSignedUrl(
+          s3,
+          new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }),
+          { expiresIn: 900 }
+        );
+      } catch { return null; }
+    }
+
+    const [rawUrl, processedUrl] = await Promise.all([
+      presign(upload.raw_key),
+      presign(upload.processed_key),
+    ]);
+
+    res.json({ upload, rawUrl, processedUrl });
+  } catch (err) {
+    logger.error("admin.upload_detail_failed", { uploadId: id, error: err.message });
+    res.status(500).json({ error: "Failed to fetch upload detail" });
+  }
+});
+
+// GET /admin/users — all users with upload stats
+app.get("/admin/users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         u.id,
+         u.email,
+         u.created_at AS joined_at,
+         COUNT(up.id)::int                                          AS total_uploads,
+         COUNT(up.id) FILTER (WHERE up.status = 'PROCESSED')::int  AS processed_uploads,
+         COUNT(up.id) FILTER (WHERE up.status = 'FAILED')::int     AS failed_uploads,
+         COALESCE(SUM(up.size_bytes) FILTER (WHERE up.size_bytes IS NOT NULL), 0)::bigint AS storage_bytes,
+         MAX(up.created_at)                                         AS last_upload_at
+       FROM users u
+       LEFT JOIN uploads up ON up.user_id = u.id
+       GROUP BY u.id, u.email, u.created_at
+       ORDER BY u.created_at DESC`
+    );
+    res.json({ users: result.rows, total: result.rowCount });
+  } catch (err) {
+    logger.error("admin.users_failed", { error: err.message });
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
 // POST /admin/dlq/:jobId/replay — re-enqueue a DLQ job
-app.post("/admin/dlq/:jobId/replay", requireAuth, async (req, res) => {
+app.post("/admin/dlq/:jobId/replay", requireAuth, requireAdmin, async (req, res) => {
   const { jobId } = req.params;
   try {
     const job = await dlqQueue.getJob(jobId);
