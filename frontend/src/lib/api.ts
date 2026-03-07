@@ -12,6 +12,19 @@ function authHeaders(): Record<string, string> {
 }
 
 async function handleJSONResponse(res: Response) {
+  // Expired / invalid token — clear session and send to login
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('isAdmin');
+      // Avoid redirect loop on the login/register pages themselves
+      const path = window.location.pathname;
+      if (path !== '/login' && path !== '/register') {
+        window.location.href = '/login';
+      }
+    }
+  }
+
   const text = await res.text();
   let json: Record<string, unknown> = {};
 

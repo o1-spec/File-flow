@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "../../lib/api";
 
-// ── Minimal inline SVG icons ──────────────────────────────────────────────────
 function IconImage() {
   return (
     <svg className="queue-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -96,7 +95,6 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`status-badge badge-${status.toLowerCase()}`}>{status}</span>;
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface JobCounts {
   waiting: number;
   active: number;
@@ -292,7 +290,6 @@ function MetricTable({ buckets }: { buckets: Record<string, MetricBucket> }) {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const router = useRouter();
   const [metrics, setMetrics]       = useState<AdminMetrics | null>(null);
@@ -304,7 +301,6 @@ export default function AdminPage() {
   const [error, setError]           = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
-  // All-uploads tab state
   const [adminUploads, setAdminUploads]         = useState<AdminUpload[]>([]);
   const [adminUploadsTotal, setAdminUploadsTotal] = useState(0);
   const [adminUploadsPage, setAdminUploadsPage]   = useState(1);

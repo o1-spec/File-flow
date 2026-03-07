@@ -26,7 +26,6 @@ export default function LoginPage() {
       router.push("/upload");
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
-      // handle { error: "..." } or { message: "..." } shapes from the backend
       setError((e?.error as string) || (e?.message as string) || JSON.stringify(err));
     } finally {
       setLoading(false);

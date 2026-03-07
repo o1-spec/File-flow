@@ -10,7 +10,6 @@ import path from "path";
 ffmpeg.setFfmpegPath(ffmpegPath.path);
 
 export async function processVideo(upload, uploadId) {
-  // ── Download raw video to a temp file ────────────────────────────────────
   const rawObject = await s3Send(
     new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
@@ -45,7 +44,6 @@ export async function processVideo(upload, uploadId) {
       .save(outputPath);
   });
 
-  // ── Extract thumbnail at 1-second mark ────────────────────────────────────
   await new Promise((resolve, reject) => {
     ffmpeg(inputPath)
       .screenshots({
@@ -58,7 +56,6 @@ export async function processVideo(upload, uploadId) {
       .on("error", reject);
   });
 
-  // ── Upload both outputs to S3 ─────────────────────────────────────────────
   const processedKey = `processed/${uploadId}/output.mp4`;
   const thumbKey     = `processed/${uploadId}/thumbnail.jpg`;
 
@@ -80,7 +77,6 @@ export async function processVideo(upload, uploadId) {
     })
   );
 
-  // ── Cleanup temp files ─────────────────────────────────────────────────────
   for (const f of [inputPath, outputPath, thumbPath]) {
     try { fs.unlinkSync(f); } catch { /* non-fatal */ }
   }

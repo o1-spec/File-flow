@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "../../lib/api";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface Upload {
   id: string;
   original_filename: string;
@@ -17,7 +16,6 @@ interface Upload {
   updated_at: string;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtBytes(b: number) {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
@@ -118,7 +116,6 @@ function DeleteModal({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function UploadsPage() {
   const router = useRouter();
   const [uploads, setUploads]         = useState<Upload[]>([]);
@@ -129,7 +126,6 @@ export default function UploadsPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
 
-  // Auth guard
   useEffect(() => {
     if (!localStorage.getItem("token")) router.push("/login");
   }, [router]);
@@ -196,10 +192,8 @@ export default function UploadsPage() {
         </button>
       </div>
 
-      {/* ── Error ── */}
       {error && <div className="alert alert-error">{error}</div>}
 
-      {/* ── Loading skeleton ── */}
       {loading && (
         <div className="uploads-loading">
           {[1, 2, 3].map((i) => (
@@ -208,7 +202,6 @@ export default function UploadsPage() {
         </div>
       )}
 
-      {/* ── Empty state ── */}
       {!loading && uploads.length === 0 && !error && (
         <div className="uploads-empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -223,7 +216,6 @@ export default function UploadsPage() {
         </div>
       )}
 
-      {/* ── Table ── */}
       {!loading && uploads.length > 0 && (
         <div className="uploads-table-wrap">
           <table className="admin-table uploads-table">
@@ -307,7 +299,6 @@ export default function UploadsPage() {
         </div>
       )}
 
-      {/* ── Delete confirm modal ── */}
       {deleteTarget && (
         <DeleteModal
           filename={deleteTarget.original_filename}
@@ -317,7 +308,6 @@ export default function UploadsPage() {
         />
       )}
 
-      {/* ── Toast ── */}
       {toast && (
         <div className={`uploads-toast${toast.ok ? " ok" : " err"}`}>
           {toast.ok ? (
