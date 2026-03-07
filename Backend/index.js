@@ -439,6 +439,41 @@ app.get("/uploads/:id/download", requireAuth, async (req, res) => {
   }
 });
 
+// Preview processed output (owner-only): returns a short-lived presigned URL
+// used by the browser for inline image/video preview inside the detail panel.
+app.get("/uploads/:id/preview", requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `SELECT id, status, processed_key, mime_type
+     FROM uploads
+     WHERE id = $1 AND user_id = $2`,
+    [id, req.user.userId]
+  );
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "Upload not found" });
+  }
+
+  const upload = result.rows[0];
+
+  if (upload.status !== "PROCESSED" || !upload.processed_key) {
+    return res.status(400).json({ error: "File is not processed yet" });
+  }
+
+  try {
+    const previewUrl = await getSignedUrl(
+      s3,
+      new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: upload.processed_key }),
+      { expiresIn: 900 }
+    );
+    return res.json({ previewUrl, mimeType: upload.mime_type });
+  } catch (err) {
+    logger.error("preview.presign_failed", { id, err: err.message });
+    return res.status(500).json({ error: "Failed to generate preview URL" });
+  }
+});
+
 // ── Admin routes ─────────────────────────────────────────────────────────────
 
 // GET /uploads — all uploads for the logged-in user

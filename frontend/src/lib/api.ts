@@ -94,6 +94,14 @@ export async function getDownload(uploadId: string) {
   return handleJSONResponse(res);
 }
 
+export async function getUploadPreview(uploadId: string) {
+  const res = await fetch(`${BASE}/uploads/${encodeURIComponent(uploadId)}/preview`, {
+    method: 'GET',
+    headers: { ...authHeaders() },
+  });
+  return handleJSONResponse(res);
+}
+
 export async function getMyUploads() {
   const res = await fetch(`${BASE}/uploads`, {
     headers: { ...authHeaders() },
@@ -182,6 +190,7 @@ export default {
   completeUpload,
   getUpload,
   getDownload,
+  getUploadPreview,
   getMyUploads,
   deleteUpload,
   logout,

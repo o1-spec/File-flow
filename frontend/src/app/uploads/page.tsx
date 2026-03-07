@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "../../lib/api";
+import { UserFileDetailPanel } from "../../components/upload/UserFileDetailPanel";
 
 interface Upload {
   id: string;
@@ -125,6 +126,9 @@ export default function UploadsPage() {
   const [deleting, setDeleting]       = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
+  const [viewTarget, setViewTarget]   = useState<Upload | null>(null);
+  const [previewUrl, setPreviewUrl]   = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem("token")) router.push("/login");
@@ -148,6 +152,26 @@ export default function UploadsPage() {
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
+  }
+
+  async function openDetail(upload: Upload) {
+    setViewTarget(upload);
+    setPreviewUrl(null);
+    if (upload.status !== "PROCESSED") return;
+    setPreviewLoading(true);
+    try {
+      const res = await api.getUploadPreview(upload.id);
+      setPreviewUrl((res as Record<string, unknown>).previewUrl as string);
+    } catch {
+      // preview unavailable — panel still shows, just without media
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closeDetail() {
+    setViewTarget(null);
+    setPreviewUrl(null);
   }
 
   async function handleDownload(upload: Upload) {
@@ -270,6 +294,18 @@ export default function UploadsPage() {
                   {/* Actions */}
                   <td>
                     <div className="uploads-actions">
+                      {/* View button — always shown */}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => openDetail(u)}
+                        title="View file details"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="13" height="13" aria-hidden="true" style={{ marginRight: 4 }}>
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        View
+                      </button>
                       {u.status === "PROCESSED" && (
                         <button
                           className="btn btn-ghost btn-sm"
@@ -316,6 +352,17 @@ export default function UploadsPage() {
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
           loading={deleting}
+        />
+      )}
+
+      {(viewTarget || previewLoading) && (
+        <UserFileDetailPanel
+          upload={viewTarget}
+          previewUrl={previewUrl}
+          loading={previewLoading}
+          onClose={closeDetail}
+          onDownload={handleDownload}
+          downloadingId={downloadingId}
         />
       )}
 
