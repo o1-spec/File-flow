@@ -12,27 +12,7 @@ import { processVideo } from "./src/processors/videoProcessor.js";
 import { logger }                                         from "./src/logger.js";
 import { recordStart, recordComplete, recordFailed,
          recordRetry, recordDLQ, getSnapshot }            from "./src/metrics.js";
-
-// DLQ helper — inline here so the worker doesn't depend on the Backend package.
-// The worker connects to the same Redis so it can push to the "dlq" queue directly.
-import { Queue } from "bullmq";
-
-const _dlqQueue = new Queue("dlq", {
-  connection: { url: process.env.REDIS_URL },
-  defaultJobOptions: { removeOnComplete: false, removeOnFail: false, attempts: 1 },
-});
-
-async function moveToDLQ(job, err) {
-  await _dlqQueue.add("dead-letter", {
-    originalQueue: job.queueName,
-    originalJobId: job.id,
-    payload:       job.data,
-    failedAt:      new Date().toISOString(),
-    errorMessage:  String(err?.message ?? err),
-    errorStack:    err?.stack ?? null,
-    attemptsMade:  job.attemptsMade,
-  }, { jobId: `dlq-${job.id}` });
-}
+import { moveToDLQ }                                      from "./src/dlq.js";
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
 const pool  = new Pool({ connectionString: process.env.DATABASE_URL });

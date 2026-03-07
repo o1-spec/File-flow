@@ -7,16 +7,20 @@ import { useEffect, useState } from "react";
 export default function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [loggedIn, setLoggedIn]         = useState(false);
+  const [loggedIn, setLoggedIn]               = useState(false);
+  const [isAdmin, setIsAdmin]                 = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     setLoggedIn(!!localStorage.getItem("token"));
+    setIsAdmin(localStorage.getItem("isAdmin") === "1");
   }, [pathname]);
 
   function confirmLogout() {
     localStorage.removeItem("token");
+    localStorage.removeItem("isAdmin");
     setLoggedIn(false);
+    setIsAdmin(false);
     setShowLogoutModal(false);
     router.push("/login");
   }
@@ -43,12 +47,14 @@ export default function Topbar() {
               >
                 Upload
               </Link>
-              <Link
-                href="/admin"
-                className={`nav-link${pathname === "/admin" ? " active" : ""}`}
-              >
-                Dashboard
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`nav-link${pathname === "/admin" ? " active" : ""}`}
+                >
+                  Dashboard
+                </Link>
+              )}
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="btn btn-ghost btn-sm"

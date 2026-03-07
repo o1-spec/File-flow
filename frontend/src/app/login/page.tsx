@@ -22,6 +22,7 @@ export default function LoginPage() {
       const token = res.token || res.accessToken || res.access_token;
       if (!token) throw new Error("No token returned from server.");
       localStorage.setItem("token", String(token));
+      localStorage.setItem("isAdmin", res.isAdmin ? "1" : "0");
       router.push("/upload");
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;

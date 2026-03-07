@@ -250,7 +250,8 @@ export default function AdminPage() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   useEffect(() => {
-    if (!localStorage.getItem("token")) router.push("/login");
+    if (!localStorage.getItem("token")) { router.push("/login"); return; }
+    if (localStorage.getItem("isAdmin") !== "1") router.push("/upload");
   }, [router]);
 
   const fetchMetrics = useCallback(async () => {

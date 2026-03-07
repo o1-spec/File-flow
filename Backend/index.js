@@ -52,6 +52,26 @@ function requireAuth(req, res, next) {
   }
 }
 
+// ---- Admin middleware ----
+// ADMIN_EMAILS is a comma-separated list of email addresses in .env.
+// Any authenticated user whose email appears in that list is an admin.
+// Example:  ADMIN_EMAILS=alice@example.com,bob@example.com
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function requireAdmin(req, res, next) {
+  // Must be called after requireAuth so req.user is populated
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+  if (!ADMIN_EMAILS.has(req.user.email?.toLowerCase())) {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
+
 // ---- Utils ----
 const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
@@ -111,13 +131,15 @@ app.post("/auth/login", async (req, res) => {
 
   if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
+  const isAdmin = ADMIN_EMAILS.has(user.email.toLowerCase());
+
   const token = jwt.sign(
-    { userId: user.id, email: user.email },
+    { userId: user.id, email: user.email, isAdmin },
     process.env.JWT_SECRET,
     { expiresIn: "1h" }
   );
 
-  res.json({ token });
+  res.json({ token, isAdmin });
 });
 
 // ---------- UPLOADS ----------
@@ -189,6 +211,91 @@ app.get("/uploads/:id", requireAuth, async (req, res) => {
   }
 
   res.json(result.rows[0]);
+});
+
+// SSE status stream — client subscribes once and receives push events until terminal
+// GET /uploads/:id/stream
+// Auth via ?token=<jwt> because EventSource cannot set custom headers.
+app.get("/uploads/:id/stream", async (req, res) => {
+  // ── Auth via query param ──────────────────────────────────────────────────
+  const token = req.query.token;
+  if (!token) return res.status(401).json({ error: "token query param required" });
+
+  let userId;
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    userId = payload.userId;
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  const { id } = req.params;
+
+  // ── SSE headers ───────────────────────────────────────────────────────────
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering
+  res.flushHeaders();
+
+  const TERMINAL = new Set(["PROCESSED", "FAILED"]);
+  const INTERVAL_MS = 1500;
+
+  function send(data) {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  }
+
+  // ── Poll Postgres and push changes ────────────────────────────────────────
+  let lastStatus = null;
+  let timer = null;
+
+  async function tick() {
+    try {
+      const result = await pool.query(
+        `SELECT id, original_filename, mime_type, size_bytes, status,
+                raw_key, processed_key, error_message, created_at, updated_at
+         FROM uploads
+         WHERE id = $1 AND user_id = $2`,
+        [id, userId]
+      );
+
+      if (result.rowCount === 0) {
+        send({ error: "Upload not found" });
+        return cleanup();
+      }
+
+      const row = result.rows[0];
+
+      // Only push when status actually changes (or on first tick)
+      if (row.status !== lastStatus) {
+        lastStatus = row.status;
+        send({ upload: row });
+      }
+
+      if (TERMINAL.has(row.status)) {
+        send({ done: true });
+        return cleanup();
+      }
+    } catch (err) {
+      logger.error("sse.tick_error", { uploadId: id, error: err.message });
+      send({ error: "Internal error" });
+      cleanup();
+    }
+  }
+
+  function cleanup() {
+    if (timer) { clearInterval(timer); timer = null; }
+    res.end();
+  }
+
+  // Run first tick immediately, then on interval
+  await tick();
+  if (!res.writableEnded) {
+    timer = setInterval(tick, INTERVAL_MS);
+  }
+
+  // Clean up when the client disconnects
+  req.on("close", cleanup);
 });
 
 // Mark upload complete (owner-only): verifies object exists, marks UPLOADED, enqueues job
@@ -325,7 +432,7 @@ app.get("/uploads/:id/download", requireAuth, async (req, res) => {
 // check here; for now any valid JWT is sufficient.
 
 // GET /admin/metrics — queue depths + worker metrics snapshot from Redis
-app.get("/admin/metrics", requireAuth, async (req, res) => {
+app.get("/admin/metrics", requireAuth, requireAdmin, async (req, res) => {
   try {
     // Only count "live" states — completed jobs are removed immediately so
     // asking for "completed" would always return 0 and be misleading.
@@ -368,7 +475,7 @@ app.get("/admin/metrics", requireAuth, async (req, res) => {
 });
 
 // GET /admin/failed — last 50 failed uploads from the DB
-app.get("/admin/failed", requireAuth, async (req, res) => {
+app.get("/admin/failed", requireAuth, requireAdmin, async (req, res) => {
   try {
     const limit = Math.min(Number(req.query.limit ?? 50), 200);
     const result = await pool.query(
@@ -388,7 +495,7 @@ app.get("/admin/failed", requireAuth, async (req, res) => {
 });
 
 // GET /admin/dlq — inspect DLQ jobs (last 50)
-app.get("/admin/dlq", requireAuth, async (req, res) => {
+app.get("/admin/dlq", requireAuth, requireAdmin, async (req, res) => {
   try {
     const jobs = await dlqQueue.getJobs(["waiting"], 0, 49);
     res.json({
@@ -410,7 +517,7 @@ app.get("/admin/dlq", requireAuth, async (req, res) => {
 });
 
 // POST /admin/dlq/:jobId/replay — re-enqueue a DLQ job
-app.post("/admin/dlq/:jobId/replay", requireAuth, async (req, res) => {
+app.post("/admin/dlq/:jobId/replay", requireAuth, requireAdmin, async (req, res) => {
   const { jobId } = req.params;
   try {
     const job = await dlqQueue.getJob(jobId);
