@@ -19,23 +19,20 @@ export default function UploadPage() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [dragging, setDragging] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  /** map localId → EventSource */
+  
   const sseRefs = useRef<Map<string, EventSource>>(new Map());
 
-  /* Auth guard — also close all SSE connections on unmount */
   useEffect(() => {
     if (!localStorage.getItem("token")) router.push("/login");
     return () => sseRefs.current.forEach((es) => es.close());
   }, [router]);
 
-  /* ── Entry state helper ────────────────────────────────── */
   function patch(localId: string, update: Partial<FileEntry>) {
     setEntries((prev) =>
       prev.map((e) => (e.localId === localId ? { ...e, ...update } : e))
     );
   }
 
-  /* ── Add files ─────────────────────────────────────────── */
   function addFiles(files: FileList | File[]) {
     const valid: FileEntry[] = [];
     const rejected: string[] = [];
@@ -65,18 +62,12 @@ export default function UploadPage() {
     if (valid.length) setEntries((prev) => [...prev, ...valid]);
   }
 
-  /* ── Drag & Drop ───────────────────────────────────────── */
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragging(false);
-      if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+  }, []);
 
-  /* ── SSE: subscribe for one upload ────────────────────── */
   function startSSE(localId: string, uploadId: string) {
     if (sseRefs.current.has(localId)) return;
 
@@ -116,7 +107,7 @@ export default function UploadPage() {
           es.close();
           sseRefs.current.delete(localId);
         }
-      } catch { /* malformed frame — ignore */ }
+      } catch { /* malformed frame */ }
     };
 
     es.onerror = () => {
@@ -133,85 +124,60 @@ export default function UploadPage() {
     sseRefs.current.set(localId, es);
   }
 
-  /* ── Upload one file ───────────────────────────────────── */
   async function uploadEntry(entry: FileEntry) {
     const { localId, file } = entry;
     patch(localId, { status: "uploading", error: null, progress: 0 });
 
     try {
-      // 1 — start
       const start = await api.startUpload({
         filename: file.name,
         mimeType: file.type,
         size: file.size,
       });
-      const presignedUrl = (
-        start.presignedUrl ||
-        start.presigned_url ||
-        start.url
-      ) as string;
+      const presignedUrl = (start.presignedUrl || start.presigned_url || start.url) as string;
       const newId = (start.uploadId || start.upload_id || start.id) as string;
-      if (!presignedUrl || !newId)
-        throw new Error("startUpload missing presignedUrl or uploadId");
+      if (!presignedUrl || !newId) throw new Error("startUpload missing presignedUrl or uploadId");
 
       patch(localId, { uploadId: newId });
 
-      // 2 — PUT to S3 with XHR for progress tracking
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (ev) => {
           if (ev.lengthComputable) {
-            patch(localId, {
-              progress: Math.round((ev.loaded / ev.total) * 100),
-            });
+            patch(localId, { progress: Math.round((ev.loaded / ev.total) * 100) });
           }
         };
         xhr.onload = () =>
-          xhr.status >= 200 && xhr.status < 300
-            ? resolve()
-            : reject(new Error(`S3 PUT failed: ${xhr.status}`));
+          xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`S3 PUT failed: ${xhr.status}`));
         xhr.onerror = () => reject(new Error("S3 network error"));
         xhr.open("PUT", presignedUrl);
-        xhr.setRequestHeader(
-          "Content-Type",
-          file.type || "application/octet-stream"
-        );
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
         xhr.send(file);
       });
 
       patch(localId, { status: "uploaded", progress: 100 });
-
-      // 3 — complete
       await api.completeUpload(newId);
       patch(localId, { status: "processing" });
-
-      // 4 — open SSE stream
       startSSE(localId, newId);
     } catch (e: unknown) {
       const err = e as Record<string, unknown>;
       patch(localId, {
         status: "error",
-        error:
-          (err?.error as string) ||
-          (err?.message as string) ||
-          "Upload failed",
+        error: (err?.error as string) || (err?.message as string) || "Upload failed",
       });
     }
   }
 
-  /* ── Bulk upload all queued ────────────────────────────── */
   function handleUploadAll() {
     entries.filter((e) => e.status === "queued").forEach((e) => uploadEntry(e));
   }
 
-  /* ── Remove entry ──────────────────────────────────────── */
   function handleRemove(localId: string) {
     sseRefs.current.get(localId)?.close();
     sseRefs.current.delete(localId);
     setEntries((prev) => prev.filter((e) => e.localId !== localId));
   }
 
-  /* ── Download ──────────────────────────────────────────── */
   async function handleDownload(uploadId: string, localId: string) {
     try {
       const entry = entries.find((e) => e.localId === localId);
@@ -231,16 +197,10 @@ export default function UploadPage() {
       URL.revokeObjectURL(objectUrl);
     } catch (e: unknown) {
       const err = e as Record<string, unknown>;
-      patch(localId, {
-        error:
-          (err?.error as string) ||
-          (err?.message as string) ||
-          "Download failed",
-      });
+      patch(localId, { error: (err?.error as string) || (err?.message as string) || "Download failed" });
     }
   }
 
-  /* ── Clear completed ───────────────────────────────────── */
   function handleClearDone() {
     setEntries((prev) => {
       prev.filter((e) => isTerminal(e.status)).forEach((e) => {
@@ -253,86 +213,66 @@ export default function UploadPage() {
 
   const queuedCount = entries.filter((e) => e.status === "queued").length;
   const doneCount = entries.filter((e) => isTerminal(e.status)).length;
-  const activeCount = entries.filter(
-    (e) => !isTerminal(e.status) && e.status !== "queued"
-  ).length;
+  const activeCount = entries.filter((e) => !isTerminal(e.status) && e.status !== "queued").length;
 
   return (
-    <div className="upload-page">
-      {/* Header */}
-      <div className="up-header">
+    <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pt-28 pb-20">
+      
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h2>Upload Files</h2>
-          <p className="subtitle">
-            Drag &amp; drop any mix of images, PDFs, and videos — each processes
-            independently.
+          <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">Deploy Pipelines</h1>
+          <p className="text-gray-400 text-sm max-w-lg">
+            Drag & drop images, PDFs, or videos to start your distributed job. They process independently in the background.
           </p>
         </div>
+
         {entries.length > 0 && (
-          <div className="up-header-actions">
-            {queuedCount > 0 && (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleUploadAll}
-              >
-                Upload {queuedCount} file{queuedCount !== 1 ? "s" : ""}
+          <div className="flex gap-3 shrink-0">
+            {doneCount > 0 && (
+              <button onClick={handleClearDone} className="px-4 py-2 border border-white/10 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/5 transition-colors">
+                Clear Done
               </button>
             )}
-            {doneCount > 0 && (
-              <button className="btn btn-ghost btn-sm" onClick={handleClearDone}>
-                Clear done
+            {queuedCount > 0 && (
+              <button onClick={handleUploadAll} className="px-4 py-2 bg-white text-black rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors">
+                Upload {queuedCount} file{queuedCount !== 1 ? "s" : ""}
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Global error */}
       {globalError && (
-        <div className="alert alert-error" style={{ marginBottom: 16 }}>
-          ✕ {globalError}
+        <div className="mb-6 p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-500 text-sm flex items-start gap-2">
+          <span className="mt-0.5">✕</span> {globalError}
         </div>
       )}
 
-      {/* Drop zone */}
       <DropZone
         hasFiles={entries.length > 0}
         dragging={dragging}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onFilesSelected={addFiles}
       />
 
-      {/* File queue */}
       {entries.length > 0 && (
-        <div className="fq-list" style={{ marginTop: 24 }}>
-          <div className="fq-summary">
-            <span>
-              {entries.length} file{entries.length !== 1 ? "s" : ""}
-            </span>
-            {activeCount > 0 && (
-              <span className="badge badge-processing">{activeCount} active</span>
-            )}
-            {queuedCount > 0 && (
-              <span className="badge badge-idle">{queuedCount} queued</span>
-            )}
-            {doneCount > 0 && (
-              <span className="badge badge-processed">{doneCount} done</span>
-            )}
+        <div className="mt-12">
+          <div className="flex items-center gap-4 mb-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <span>{entries.length} file{entries.length !== 1 ? "s" : ""}</span>
+            <div className="flex gap-2">
+              {activeCount > 0 && <span className="text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded">{activeCount} active</span>}
+              {queuedCount > 0 && <span className="text-gray-400 bg-white/10 px-2 py-0.5 rounded">{queuedCount} queued</span>}
+              {doneCount > 0 && <span className="text-green-400 bg-green-400/10 px-2 py-0.5 rounded">{doneCount} done</span>}
+            </div>
           </div>
-
-          {entries.map((entry) => (
-            <FileRow
-              key={entry.localId}
-              entry={entry}
-              onRemove={handleRemove}
-              onDownload={handleDownload}
-            />
-          ))}
+          
+          <div className="flex flex-col">
+            {entries.map((entry) => (
+              <FileRow key={entry.localId} entry={entry} onRemove={handleRemove} onDownload={handleDownload} />
+            ))}
+          </div>
         </div>
       )}
     </div>

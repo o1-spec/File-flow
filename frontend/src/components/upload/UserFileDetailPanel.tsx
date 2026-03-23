@@ -1,4 +1,6 @@
 "use client";
+import React from "react";
+import { XMarkIcon, ArrowDownTrayIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 
 interface UserUpload {
   id: string;
@@ -37,6 +39,13 @@ function fmtDate(iso: string) {
   });
 }
 
+function StatusBadge({ status }: { status: UserUpload["status"] }) {
+  if (status === "PROCESSED") return <span className="bg-white text-black px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase">Processed</span>;
+  if (status === "FAILED") return <span className="bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase">Failed</span>;
+  if (status === "CREATED") return <span className="bg-white/10 text-white border border-white/20 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase">Created</span>;
+  return <span className="bg-white/5 border border-white/10 text-gray-300 animate-pulse px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase">{status}</span>;
+}
+
 export function UserFileDetailPanel({
   upload,
   previewUrl,
@@ -52,132 +61,96 @@ export function UserFileDetailPanel({
   const isPdf   = upload?.mime_type === "application/pdf";
 
   return (
-    <div className="detail-backdrop" onClick={onClose}>
-      <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
-
-        {/* ── Header ── */}
-        <div className="detail-header">
-          <span className="detail-title">File Detail</span>
-          <button className="detail-close" onClick={onClose} aria-label="Close">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div 
+        className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+          <h2 className="text-sm font-semibold text-white">File Detail</h2>
+          <button onClick={onClose} className="p-1 text-gray-500 hover:text-white rounded transition-colors">
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ── Body ── */}
         {loading ? (
-          <div className="detail-loading">Loading…</div>
+          <div className="p-12 flex flex-col items-center justify-center text-gray-400">
+            <ArrowPathIcon className="w-6 h-6 animate-spin mb-4" />
+            <span className="text-sm">Loading details...</span>
+          </div>
         ) : upload ? (
-          <div className="detail-body">
+          <div className="flex flex-col flex-1 overflow-y-auto">
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex justify-between items-start gap-4 pb-4 border-b border-white/5">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs text-gray-500 uppercase tracking-wider mb-1">Filename</span>
+                  <span className="text-sm text-white font-medium truncate" title={upload.original_filename}>{upload.original_filename}</span>
+                </div>
+                <StatusBadge status={upload.status} />
+              </div>
 
-            {/* Meta grid */}
-            <div className="detail-meta">
-              <div className="detail-row">
-                <span className="detail-label">File</span>
-                <span className="detail-val" title={upload.original_filename}>
-                  {upload.original_filename}
-                </span>
+              <div className="grid grid-cols-2 gap-4 pb-4 border-b border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Type</span>
+                  <span className="text-xs text-gray-300 truncate">{upload.mime_type}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Size</span>
+                  <span className="text-xs text-gray-300">{fmtBytes(upload.size_bytes)}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Uploaded</span>
+                  <span className="text-xs text-gray-300">{fmtDate(upload.created_at)}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Updated</span>
+                  <span className="text-xs text-gray-300">{fmtDate(upload.updated_at)}</span>
+                </div>
               </div>
-              <div className="detail-row">
-                <span className="detail-label">Type</span>
-                <span className="detail-val">
-                  <span className="admin-type-badge">{upload.mime_type}</span>
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Size</span>
-                <span className="detail-val">{fmtBytes(upload.size_bytes)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Status</span>
-                <span className="detail-val">
-                  <span className={`status-badge badge-${upload.status.toLowerCase()}`}>
-                    {upload.status}
-                  </span>
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Uploaded</span>
-                <span className="detail-val">{fmtDate(upload.created_at)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Updated</span>
-                <span className="detail-val">{fmtDate(upload.updated_at)}</span>
-              </div>
+
               {upload.error_message && (
-                <div className="detail-row detail-error-row">
-                  <span className="detail-label">Error</span>
-                  <span className="detail-val" style={{ color: "#fca5a5" }}>
-                    {upload.error_message}
-                  </span>
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex flex-col">
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1">Error</span>
+                  <span className="text-xs text-red-300">{upload.error_message}</span>
                 </div>
               )}
+
+              {/* Previews */}
+              <div className="mt-2 flex flex-col bg-white/[0.02] rounded-xl border border-white/5 overflow-hidden">
+                {previewUrl && isImage && (
+                  <img src={previewUrl} alt="Preview" className="w-full h-auto object-contain max-h-64" />
+                )}
+                {previewUrl && isVideo && (
+                  <video src={previewUrl} controls className="w-full max-h-64 bg-black" />
+                )}
+                {isPdf && upload.status === "PROCESSED" && (
+                  <div className="p-6 text-center text-xs text-gray-400">
+                    PDF file ready. Download to view.
+                  </div>
+                )}
+                {!previewUrl && upload.status !== "PROCESSED" && (
+                  <div className="p-6 text-center text-xs text-gray-500 border-t border-dashed border-white/10">
+                    Preview unavailable until processing completes.
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* ── Image preview ── */}
-            {previewUrl && isImage && (
-              <div className="detail-preview-section">
-                <div className="detail-preview-label">Processed preview</div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previewUrl} alt="processed preview" className="detail-img-preview" />
-              </div>
-            )}
-
-            {/* ── Video preview ── */}
-            {previewUrl && isVideo && (
-              <div className="detail-preview-section">
-                <div className="detail-preview-label">Processed video</div>
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                <video src={previewUrl} controls className="detail-video-preview" />
-              </div>
-            )}
-
-            {/* ── PDF notice ── */}
-            {isPdf && upload.status === "PROCESSED" && (
-              <div className="detail-preview-section">
-                <div className="detail-preview-label">PDF file</div>
-                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
-                  Download the file to view it in your PDF reader.
-                </p>
-              </div>
-            )}
-
-            {/* ── Not processed yet ── */}
-            {!previewUrl && upload.status !== "PROCESSED" && (
-              <div className="detail-preview-section">
-                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
-                  Preview is available once the file has been processed.
-                </p>
-              </div>
-            )}
-
-            {/* ── Actions ── */}
-            <div className="detail-actions">
-              {upload.status === "PROCESSED" && (
+            {upload.status === "PROCESSED" && (
+              <div className="px-6 py-4 border-t border-white/5 bg-[#0a0a0a]">
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                   disabled={downloadingId === upload.id}
                   onClick={() => onDownload(upload)}
                 >
-                  {downloadingId === upload.id ? "Downloading…" : (
-                    <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                        strokeLinecap="round" strokeLinejoin="round" width="13" height="13"
-                        style={{ marginRight: 4 }} aria-hidden="true">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      Download
-                    </>
+                  {downloadingId === upload.id ? (
+                    <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Downloading...</>
+                  ) : (
+                    <><ArrowDownTrayIcon className="w-4 h-4" /> Download Result</>
                   )}
                 </button>
-              )}
-            </div>
-
+              </div>
+            )}
           </div>
         ) : null}
       </div>

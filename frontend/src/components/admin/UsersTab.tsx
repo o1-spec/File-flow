@@ -1,60 +1,53 @@
 import { AdminUser } from "@/types/admin";
-import { fmtBytes, fmtDate, ago } from "@/lib/formatters";
+import { fmtDate } from "@/lib/formatters";
+import { ArrowPathIcon, CheckBadgeIcon } from "@heroicons/react/24/outline";
 
-interface UsersTabProps {
-  users: AdminUser[];
-  loading: boolean;
-  onRefresh: () => void;
-}
-
-export function UsersTab({ users, loading, onRefresh }: UsersTabProps) {
+export function UsersTab({ users, loading, onRefresh }: { users: AdminUser[]; loading: boolean; onRefresh: () => void }) {
   return (
-    <>
-      <div className="admin-uploads-toolbar">
-        <div className="admin-section-title" style={{ margin: 0 }}>
-          {loading
-            ? "Loading…"
-            : `${users.length} registered user${users.length !== 1 ? "s" : ""}`}
-        </div>
-        <button className="btn btn-ghost btn-sm" onClick={onRefresh}>
-          ↺ Refresh
+    <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold tracking-tight text-white">
+          {loading ? "Loading..." : `${users.length} Users`}
+        </h3>
+        <button onClick={onRefresh} className="flex items-center gap-2 px-3 py-1.5 border border-white/10 rounded-lg text-sm text-gray-300 hover:bg-white/5 transition-colors">
+          <ArrowPathIcon className="w-4 h-4" /> Refresh
         </button>
       </div>
 
       {users.length === 0 && !loading ? (
-        <p className="admin-empty">No users yet.</p>
+        <p className="p-12 text-center text-sm text-gray-500 border border-white/5 border-dashed rounded-xl">No users found.</p>
       ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Joined</th>
-              <th>Total</th>
-              <th>Processed</th>
-              <th>Failed</th>
-              <th>Storage Used</th>
-              <th>Last Upload</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td style={{ fontWeight: 500 }}>{u.email}</td>
-                <td className="admin-ts">{fmtDate(u.joined_at)}</td>
-                <td>{u.total_uploads}</td>
-                <td className="green">{u.processed_uploads}</td>
-                <td className={u.failed_uploads > 0 ? "red" : ""}>
-                  {u.failed_uploads}
-                </td>
-                <td className="admin-ts">{fmtBytes(u.storage_bytes)}</td>
-                <td className="admin-ts">
-                  {u.last_upload_at ? ago(u.last_upload_at) : "—"}
-                </td>
+        <div className="rounded-xl border border-white/10 overflow-hidden overflow-x-auto bg-[#0a0a0a]">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-gray-500 uppercase bg-white/2 border-b border-white/10 tracking-wider">
+              <tr>
+                <th className="px-6 py-4 font-semibold">User ID</th>
+                <th className="px-6 py-4 font-semibold">Email</th>
+                <th className="px-6 py-4 font-semibold">Role</th>
+                <th className="px-6 py-4 font-semibold">Joined</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-white/2 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">{u.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-white font-medium">{u.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {(u as any).is_admin ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold text-purple-400 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">
+                        <CheckBadgeIcon className="w-3 h-3" /> Admin
+                      </span>
+                    ) : (
+                      <span className="text-[10px] uppercase tracking-wide text-gray-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">User</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-400">{fmtDate(u.joined_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </>
+    </div>
   );
 }

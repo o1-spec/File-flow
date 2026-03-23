@@ -3,12 +3,12 @@ import {
   FileEntry,
   STEPS,
   statusToStep,
-  badgeClass,
   badgeLabel,
   isTerminal,
   formatSize,
 } from "@/types/upload";
 import { FileIcon } from "./FileIcon";
+import { ChevronDownIcon, ChevronUpIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface FileRowProps {
   entry: FileEntry;
@@ -21,136 +21,144 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
   const currentStep = statusToStep[entry.status] ?? -1;
   const terminal = isTerminal(entry.status);
 
-  const hasRecord =
-    entry.record !== null && typeof entry.record === "object";
+  const hasRecord = entry.record !== null && typeof entry.record === "object";
   const recordEntries = hasRecord
     ? Object.entries(entry.record as Record<string, unknown>).filter(
         ([, v]) => v !== null && v !== undefined && v !== ""
       )
     : [];
 
+  const isFailed = entry.status === "FAILED";
+  const isProcessed = entry.status === "PROCESSED";
+
+  const getBadgeStyling = () => {
+    if (isProcessed) return "bg-white text-black font-semibold";
+    if (isFailed) return "bg-red-500/10 text-red-500 border border-red-500/20";
+    if (entry.status === "queued") return "bg-white/10 text-white border border-white/20";
+    return "bg-white/5 border border-white/10 text-gray-300 animate-pulse";
+  };
+
   return (
     <div
-      className={`fq-item${
-        terminal
-          ? entry.status === "PROCESSED"
-            ? " fq-done"
-            : " fq-failed"
-          : ""
+      className={`relative w-full border rounded-xl overflow-hidden mb-3 transition-colors ${
+        isFailed
+          ? "border-red-500/30 bg-red-500/[0.02]"
+          : "border-white/10 bg-[#0a0a0a]"
       }`}
     >
-      {/* Row header */}
-      <div className="fq-header">
-        <span className="fq-icon">
+      <div className="flex items-center px-4 py-3 gap-4">
+        <div className="flex-shrink-0 text-gray-400 opacity-60">
           <FileIcon type={entry.file.type} />
-        </span>
-        <div className="fq-meta">
-          <span className="fq-name" title={entry.file.name}>
-            {entry.file.name}
-          </span>
-          <span className="fq-size">{formatSize(entry.file.size)}</span>
         </div>
-        <span className={badgeClass(entry.status)}>{badgeLabel(entry.status)}</span>
-        {hasRecord && (
-          <button
-            className="btn btn-ghost btn-sm fq-toggle"
-            onClick={() => setExpanded((v) => !v)}
-            title={expanded ? "Hide details" : "Show details"}
-          >
-            {expanded ? "▲" : "▼"}
-          </button>
-        )}
-        {(entry.status === "queued" || terminal) && (
-          <button
-            className="btn btn-ghost btn-sm fq-remove"
-            onClick={() => onRemove(entry.localId)}
-            title="Remove"
-          >
-            ✕
-          </button>
-        )}
+        
+        <div className="flex-grow min-w-0">
+          <div className="text-sm font-medium text-white truncate" title={entry.file.name}>
+            {entry.file.name}
+          </div>
+          <div className="text-xs text-gray-500">
+            {formatSize(entry.file.size)}
+          </div>
+        </div>
+
+        <div className={`px-2 py-0.5 rounded-full text-[10px] tracking-wide uppercase ${getBadgeStyling()}`}>
+          {badgeLabel(entry.status)}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {hasRecord && (
+            <button
+              className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+              onClick={() => setExpanded((v) => !v)}
+              title={expanded ? "Hide details" : "Show details"}
+            >
+              {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+            </button>
+          )}
+          {(entry.status === "queued" || terminal) && (
+            <button
+              className="p-1 text-gray-400 hover:text-red-400 hover:bg-white/10 rounded transition-colors"
+              onClick={() => onRemove(entry.localId)}
+              title="Remove"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Progress bar (uploading only) */}
       {entry.status === "uploading" && (
-        <div className="fq-progress-track">
-          <div
-            className="fq-progress-bar"
-            style={{ width: `${entry.progress}%` }}
-          />
-          <span className="fq-progress-pct">{entry.progress}%</span>
-        </div>
-      )}
-
-      {/* Steps tracker */}
-      {entry.status !== "queued" && (
-        <div className="steps fq-steps-full" style={{ marginTop: 16 }}>
-          {STEPS.map((label, i) => {
-            const isDone =
-              entry.status === "PROCESSED" ? true : currentStep > i;
-            const isActive = !isDone && currentStep === i;
-            const isFail = entry.status === "FAILED" && i === 2;
-            return (
-              <React.Fragment key={label}>
-                {i > 0 && (
-                  <div
-                    className={`step-connector${
-                      entry.status === "PROCESSED" || currentStep > i - 1
-                        ? " done"
-                        : ""
-                    }`}
-                  />
-                )}
-                <div
-                  className={`step${isActive ? " active" : ""}${
-                    isDone ? " done" : ""
-                  }${isFail ? " failed" : ""}`}
-                >
-                  <div className="step-circle">
-                    {isFail ? "✕" : isDone ? "✓" : i + 1}
-                  </div>
-                  <span className="step-label">{label}</span>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      )}
-
-      {/* SSE live indicator */}
-      {!terminal &&
-        entry.status !== "queued" &&
-        entry.status !== "uploading" && (
-          <div className="fq-polling-hint">
-            <span className="sse-dot" /> Live updates via SSE
+        <div className="px-4 pb-3">
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white transition-all duration-300 ease-out"
+              style={{ width: `${entry.progress}%` }}
+            />
           </div>
-        )}
+        </div>
+      )}
 
-      {/* Error message */}
+      {entry.status !== "queued" && (
+        <div className="px-4 pb-4">
+          <div className="flex items-center gap-2">
+            {STEPS.map((label, i) => {
+              const isDone = entry.status === "PROCESSED" ? true : currentStep > i;
+              const isActive = !isDone && currentStep === i;
+              const isFail = entry.status === "FAILED" && i === 2;
+              
+              const stepColor = isFail 
+                ? "bg-red-500/20 text-red-500 border-red-500/50" 
+                : isDone 
+                  ? "bg-white text-black border-transparent" 
+                  : isActive 
+                    ? "bg-white/10 text-white border-white/50 animate-pulse" 
+                    : "bg-transparent text-gray-600 border-white/10";
+
+              return (
+                <React.Fragment key={label}>
+                  <div
+                    className={`flex items-center gap-2 text-xs font-medium border rounded-md px-2 py-1 ${stepColor}`}
+                  >
+                    {isFail ? "✕" : isDone ? "✓" : i + 1}
+                    <span className="hidden sm:inline">{label}</span>
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div className={`h-px grow ${isDone ? "bg-white/30" : "bg-white/10"}`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {entry.error && (
-        <div className="alert alert-error fq-alert">✕ {entry.error}</div>
+        <div className="mx-4 mb-4 px-3 py-2 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded-md flex items-start gap-2">
+          <span className="mt-0.5">✕</span> {entry.error}
+        </div>
       )}
 
-      {/* Download button */}
       {entry.status === "PROCESSED" && entry.uploadId && (
-        <button
-          className="btn btn-success btn-sm fq-download"
-          onClick={() => onDownload(entry.uploadId!, entry.localId)}
-        >
-          Download Processed File
-        </button>
+        <div className="px-4 pb-4">
+          <button
+            className="w-full sm:w-auto px-4 py-1.5 bg-white text-black text-xs font-semibold rounded-md hover:bg-gray-200 transition-colors"
+            onClick={() => onDownload(entry.uploadId!, entry.localId)}
+          >
+            Download Final File
+          </button>
+        </div>
       )}
 
-      {/* Collapsible record details */}
       {hasRecord && expanded && (
-        <div className="fq-record">
-          <div className="fq-record-title">Upload Record</div>
-          {recordEntries.map(([k, v]) => (
-            <div key={k} className="record-row">
-              <span className="rr-key">{k}</span>
-              <span className="rr-val">{String(v)}</span>
-            </div>
-          ))}
+        <div className="px-4 pb-4 border-t border-white/5 pt-4 bg-white/[0.01]">
+          <div className="text-xs font-semibold text-gray-300 mb-3 uppercase tracking-wider">Upload Record Details</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
+            {recordEntries.map(([k, v]) => (
+              <div key={k} className="flex flex-col">
+                <span className="text-[10px] text-gray-500 uppercase">{k}</span>
+                <span className="text-xs text-gray-300 font-mono break-all">{String(v)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

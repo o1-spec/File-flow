@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 export default function Topbar() {
   const pathname = usePathname();
@@ -27,60 +28,53 @@ export default function Topbar() {
 
   return (
     <>
-      <header className="topbar">
+      <header className="sticky top-0 z-50 flex items-center justify-between px-6 h-16 w-full border-b border-white/8 bg-[#0a0a0a]/80 backdrop-blur-xl">
         {/* Brand */}
-        <Link href="/" className="topbar-brand">
-          {/* bolt icon */}
-          <svg className="brand-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M13 2 4.5 13H11l-1 9L19.5 11H13L14 2z" />
-          </svg>
+        <Link href="/" className="flex items-center gap-2 text-white font-bold text-lg tracking-tight hover:opacity-80 transition-opacity">
           FileFlow
         </Link>
 
-        {/* Nav */}
-        <nav className="topbar-nav">
+=        <nav className="flex items-center gap-4 text-sm font-medium">
           {loggedIn ? (
             <>
               <Link
                 href="/upload"
-                className={`nav-link${pathname === "/upload" ? " active" : ""}`}
+                className={`transition-colors py-1.5 px-3 rounded-md \${pathname === "/upload" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
               >
                 Upload
               </Link>
               <Link
                 href="/uploads"
-                className={`nav-link${pathname === "/uploads" ? " active" : ""}`}
+                className={`transition-colors py-1.5 px-3 rounded-md \${pathname === "/uploads" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
               >
                 My Files
               </Link>
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className={`nav-link${pathname === "/admin" ? " active" : ""}`}
+                  className={`transition-colors py-1.5 px-3 rounded-md \${pathname.startsWith("/admin") ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
                 >
                   Dashboard
                 </Link>
               )}
               <button
                 onClick={() => setShowLogoutModal(true)}
-                className="btn btn-ghost btn-sm"
-                style={{ marginLeft: 6 }}
+                className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors ml-2"
               >
-                Logout
+                Logout <ArrowRightOnRectangleIcon className="w-4 h-4" />
               </button>
             </>
           ) : (
             <>
               <Link
                 href="/login"
-                className={`nav-link${pathname === "/login" ? " active" : ""}`}
+                className={`transition-colors py-1.5 px-3 rounded-md \${pathname === "/login" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
               >
-                Login
+                Log In
               </Link>
               <Link
                 href="/register"
-                className="btn btn-primary btn-sm"
-                style={{ width: "auto", padding: "6px 14px" }}
+                className="h-8 inline-flex items-center justify-center px-4 rounded-md bg-white text-black font-semibold hover:bg-gray-200 transition-all text-sm"
               >
                 Get Started
               </Link>
@@ -89,26 +83,22 @@ export default function Topbar() {
         </nav>
       </header>
 
-      {/* ── Logout confirm modal ── */}
       {showLogoutModal && (
-        <div className="modal-backdrop" onClick={() => setShowLogoutModal(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-icon">
-              {/* door-open / logout icon */}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
+        <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowLogoutModal(false)}>
+          <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-5">
+              <ArrowRightOnRectangleIcon className="w-6 h-6" />
             </div>
-            <h3 className="modal-title">Sign out?</h3>
-            <p className="modal-body">You&apos;ll need to log back in to access your uploads and dashboard.</p>
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setShowLogoutModal(false)}>
+            <h3 className="text-xl font-bold text-white mb-2">Sign out?</h3>
+            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+              You'll need to log back in to access your file pipeline and dashboard.
+            </p>
+            <div className="flex gap-3">
+              <button className="flex-1 py-2.5 rounded-lg border border-white/10 text-white font-medium hover:bg-white/5 transition-colors" onClick={() => setShowLogoutModal(false)}>
                 Cancel
               </button>
-              <button className="btn btn-danger" onClick={confirmLogout}>
-                Sign out
+              <button className="flex-1 py-2.5 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors" onClick={confirmLogout}>
+                Sign Out
               </button>
             </div>
           </div>

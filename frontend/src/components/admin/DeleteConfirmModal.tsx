@@ -1,59 +1,52 @@
-import { AdminUpload } from "@/types/admin";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
-interface DeleteConfirmModalProps {
-  target: AdminUpload;
-  deleting: boolean;
+interface Props {
+  email: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isDeleting: boolean;
 }
 
-export function DeleteConfirmModal({
-  target,
-  deleting,
-  onConfirm,
-  onCancel,
-}: DeleteConfirmModalProps) {
+export function DeleteConfirmModal({ email, onConfirm, onCancel, isDeleting }: Props) {
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-icon" style={{ color: "var(--red)" }}>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-        </div>
-        <h3 className="modal-title">Delete upload?</h3>
-        <p className="modal-body">
-          <strong style={{ color: "var(--text-primary)" }}>
-            {target.original_filename}
-          </strong>{" "}
-          will be permanently removed from storage and the database. This cannot
-          be undone.
-        </p>
-        <div className="modal-actions">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
+          <h2 className="text-lg font-semibold text-white tracking-tight">Revoke Access</h2>
           <button
-            className="btn btn-ghost"
             onClick={onCancel}
-            disabled={deleting}
+            disabled={isDeleting}
+            className="p-1 -mr-1 text-gray-500 hover:text-white rounded-full transition-colors disabled:opacity-50"
+          >
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-400">
+            Are you sure you want to revoke access for <span className="text-white font-medium">{email}</span>?
+          </p>
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-xs text-red-400">
+              <strong>Warning:</strong> This action is irreversible. The user will be immediately logged out and their API tokens will be invalidated.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-5 flex justify-end gap-3 bg-white/2 border-t border-white/10">
+          <button
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="px-4 py-2 text-sm font-medium text-gray-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
-            className="btn btn-danger"
             onClick={onConfirm}
-            disabled={deleting}
+            disabled={isDeleting}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-500 transition-colors disabled:opacity-50 min-w-25"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {isDeleting ? "Revoking..." : "Revoke Access"}
           </button>
         </div>
       </div>
