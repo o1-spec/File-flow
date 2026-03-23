@@ -29,7 +29,7 @@ export default function Home() {
             FileFlow is an enterprise architecture pattern for massive file uploads. Direct-to-S3 routing, asynchronous Redis worker queues, and real-time SSE observability.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full max-w-md">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full max-w-lg">
             <Link href="/register" className="group flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-black font-semibold hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
               Deploy Your Pipeline
               <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
