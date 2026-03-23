@@ -10,7 +10,7 @@ export function FailedTab({ failed }: { failed: FailedUpload[] }) {
     <div className="flex flex-col gap-6 animate-in fade-in duration-300 mt-6">
       <div className="rounded-xl border border-white/10 overflow-hidden overflow-x-auto bg-[#0a0a0a]">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs text-gray-500 uppercase bg-white/[0.02] border-b border-white/10 tracking-wider">
+          <thead className="text-xs text-gray-500 uppercase bg-white/2 border-b border-white/10 tracking-wider">
             <tr>
               <th className="px-6 py-4 font-semibold">File</th>
               <th className="px-6 py-4 font-semibold">User</th>
@@ -20,9 +20,9 @@ export function FailedTab({ failed }: { failed: FailedUpload[] }) {
           </thead>
           <tbody className="divide-y divide-white/5">
             {failed.map(f => (
-              <tr key={f.id} className="hover:bg-white/[0.02] transition-colors">
+              <tr key={f.id} className="hover:bg-white/2 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-medium text-white block max-w-[200px] truncate" title={f.original_filename}>{f.original_filename}</span>
+                  <span className="font-medium text-white block max-w-50 truncate" title={f.original_filename}>{f.original_filename}</span>
                   <span className="text-[10px] text-gray-600 font-mono mt-0.5">{f.id}</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-400 font-mono text-xs">{f.user_id}</td>

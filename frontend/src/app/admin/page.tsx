@@ -179,7 +179,7 @@ export default function AdminPage() {
   ] as const;
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-[1400px] mx-auto w-full pt-28 pb-20">
+    <div className="flex-1 flex flex-col p-6 max-w-350 mx-auto w-full pt-28 pb-20">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
