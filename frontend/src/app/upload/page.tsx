@@ -218,10 +218,10 @@ export default function UploadPage() {
   return (
     <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pt-28 pb-20">
       
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">Deploy Pipelines</h1>
-          <p className="text-gray-400 text-sm max-w-lg">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+        <div className="w-full flex flex-col items-center">
+          <h1 className="text-3xl font-semibold text-center tracking-tight text-white mb-2">Deploy Pipelines</h1>
+          <p className="text-gray-400 text-center text-sm max-w-lg">
             Drag & drop images, PDFs, or videos to start your distributed job. They process independently in the background.
           </p>
         </div>
