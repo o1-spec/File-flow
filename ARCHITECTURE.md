@@ -27,6 +27,49 @@
 
 ## 1. High-Level Overview
 
+```mermaid
+flowchart TD
+    %% Formatting
+    classDef frontend fill:#000,stroke:#333,stroke-width:2px,color:#fff;
+    classDef worker fill:#1e3a8a,stroke:#2563eb,stroke-width:2px,color:#fff;
+    classDef api fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef db fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#fff;
+    
+    Client([💻 Browser / Next.js])
+
+    subgraph Data & Storage
+        DB[(PostgreSQL)]:::db
+        Redis[(Redis / BullMQ)]:::db
+        S3[(Cloudflare R2 / MinIO)]:::db
+    end
+
+    subgraph Backend [Backend Processes]
+        API(Express API):::api
+        Worker(Background Worker):::worker
+    end
+
+    %% Client Interactions
+    Client -- "1. POST /uploads/start" --> API
+    API -- "Returns Presigned URL" --> Client
+    Client -- "2. Direct PUT via Presigned URL\n(Bypasses API)" --> S3
+    
+    %% API to DB & Queue
+    Client -- "3. POST /uploads/complete" --> API
+    API -- "Writes Metadata" --> DB
+    API -- "Enqueues Job" --> Redis
+    
+    %% Worker Processing
+    Redis -- "Polls Queue" --> Worker
+    Worker -- "Downloads File" --> S3
+    Worker -- "Processes (FFmpeg, Sharp, PDF-lib)" --> Worker
+    Worker -- "Uploads Processed File" --> S3
+    Worker -- "Updates Status" --> DB
+    
+    %% Real-time updates
+    DB -. "Server-Sent Events (SSE)\nPolls Status" .-> API
+    API -. "Pushes Real-time Status" .-> Client
+```
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Browser (Next.js)                        │

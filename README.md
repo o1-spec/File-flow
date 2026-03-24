@@ -1,8 +1,15 @@
 # ⚡️ FileFlow: Distributed Multimedia Pipeline Edge Router 
 
+> **Built for the DevCareer × Raenest Freelancer Hackathon 🚀**
+
+**Live Demo:** [Insert Vercel Link]  
+**Architecture Deep Dive:** [View ARCHITECTURE.md](./ARCHITECTURE.md)
+
 A highly-concurrent, distributed file processing platform built from the ground up for massive throughput. FileFlow allows users to upload thousands of images, videos, and documents simultaneously and monitors their exact state natively in real-time as background worker nodes process the queue.
 
 ## 🏗 System Architecture
+
+![Architecture](https://img.shields.io/badge/Architecture-Distributed-blue) ![Stack](https://img.shields.io/badge/Stack-Next.js%20%7C%20Node%20%7C%20Redis-success)
 
 FileFlow relies on a distributed microservice architecture to allow the Gateway (Frontend/API) to remain entirely decoupled from the Heavy Compute (Workers).
 
