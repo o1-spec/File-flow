@@ -238,3 +238,14 @@ logger.info("worker.started", {
   workerId: WORKER_ID,
   pid: process.pid,
 });
+
+// ── Dummy HTTP Server to satisfy Render Free Tier Web Services ────────────────
+import http from "http";
+
+const PORT = process.env.PORT || 10000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Worker is alive and processing jobs.\n');
+}).listen(PORT, () => {
+  logger.info("worker.dummy_http_started", { port: PORT, workerId: WORKER_ID });
+});
