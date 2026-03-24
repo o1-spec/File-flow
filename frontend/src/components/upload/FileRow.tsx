@@ -52,7 +52,7 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
   const isPdf   = entry.file.type === "application/pdf";
 
   const getBadgeStyling = () => {
-    if (isProcessed) return "bg-white text-black font-semibold";
+    if (isProcessed) return "bg-green-500/20 text-green-400 border border-green-500/30 font-semibold";
     if (isFailed) return "bg-red-500/10 text-red-500 border border-red-500/20";
     if (entry.status === "queued") return "bg-white/10 text-white border border-white/20";
     return "bg-white/5 border border-white/10 text-gray-300 animate-pulse";
@@ -128,7 +128,7 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
               const stepColor = isFail 
                 ? "bg-red-500/20 text-red-500 border-red-500/50" 
                 : isDone 
-                  ? "bg-white text-black border-transparent" 
+                  ? "bg-green-500/20 text-green-400 border-green-500/50" 
                   : isActive 
                     ? "bg-white/10 text-white border-white/50 animate-pulse" 
                     : "bg-transparent text-gray-600 border-white/10";
@@ -142,7 +142,7 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
                     <span className="hidden sm:inline">{label}</span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`h-px grow ${isDone ? "bg-white/30" : "bg-white/10"}`} />
+                    <div className={`h-px grow ${isDone ? "bg-green-500/30" : "bg-white/10"}`} />
                   )}
                 </React.Fragment>
               );
