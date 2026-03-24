@@ -18,6 +18,22 @@ interface FileRowProps {
 
 export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Fetch preview when record opens if it is ready
+  React.useEffect(() => {
+    if (expanded && entry.status === "PROCESSED" && entry.uploadId && !previewUrl && !previewLoading) {
+      setPreviewLoading(true);
+      import('@/lib/api').then((api) => {
+        api.default.getUploadPreview(entry.uploadId!)
+          .then((res: Record<string, unknown>) => setPreviewUrl(res.previewUrl as string))
+          .catch(() => {})
+          .finally(() => setPreviewLoading(false));
+      });
+    }
+  }, [expanded, entry.status, entry.uploadId, previewUrl, previewLoading]);
+
   const currentStep = statusToStep[entry.status] ?? -1;
   const terminal = isTerminal(entry.status);
 
@@ -30,6 +46,10 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
 
   const isFailed = entry.status === "FAILED";
   const isProcessed = entry.status === "PROCESSED";
+
+  const isImage = entry.file.type.startsWith("image/");
+  const isVideo = entry.file.type.startsWith("video/");
+  const isPdf   = entry.file.type === "application/pdf";
 
   const getBadgeStyling = () => {
     if (isProcessed) return "bg-white text-black font-semibold";
@@ -150,6 +170,30 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
 
       {hasRecord && expanded && (
         <div className="px-4 pb-4 border-t border-white/5 pt-4 bg-white/[0.01]">
+          {entry.status === "PROCESSED" && (
+            <div className="mb-4 flex flex-col bg-black/20 rounded-xl border border-white/5 overflow-hidden">
+              {previewLoading ? (
+                <div className="p-6 flex flex-col items-center justify-center text-gray-400">
+                  <span className="text-xs animate-pulse">Loading preview...</span>
+                </div>
+              ) : previewUrl ? (
+                isImage ? (
+                  <img src={previewUrl} alt="Preview" className="w-full h-auto object-contain max-h-64" />
+                ) : isVideo ? (
+                  <video src={previewUrl} controls className="w-full max-h-64 bg-black" />
+                ) : isPdf ? (
+                  <div className="p-6 text-center text-xs text-gray-400">
+                    PDF ready. Download to view.
+                  </div>
+                ) : null
+              ) : (
+                <div className="p-6 text-center text-xs text-gray-500">
+                  Preview unavailable.
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="text-xs font-semibold text-gray-300 mb-3 uppercase tracking-wider">Upload Record Details</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4">
             {recordEntries.map(([k, v]) => (
