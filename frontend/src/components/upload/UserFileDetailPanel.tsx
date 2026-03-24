@@ -61,13 +61,14 @@ export function UserFileDetailPanel({
   const isPdf   = upload?.mime_type === "application/pdf";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-100 flex justify-end bg-black/60 backdrop-blur-sm transition-opacity duration-300" onClick={onClose}>
       <div 
-        className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        className="w-full max-w-md bg-[#141414] border-l border-white/10 shadow-2xl flex flex-col h-full"
+        style={{ animation: "slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-          <h2 className="text-sm font-semibold text-white">File Detail</h2>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-black/20">
+          <h2 className="text-base font-semibold text-white">File Preview & Details</h2>
           <button onClick={onClose} className="p-1 text-gray-500 hover:text-white rounded transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
@@ -116,7 +117,7 @@ export function UserFileDetailPanel({
               )}
 
               {/* Previews */}
-              <div className="mt-2 flex flex-col bg-white/[0.02] rounded-xl border border-white/5 overflow-hidden">
+              <div className="mt-2 flex flex-col bg-white/5 rounded-xl border border-white/5 overflow-hidden">
                 {previewUrl && isImage && (
                   <img src={previewUrl} alt="Preview" className="w-full h-auto object-contain max-h-64" />
                 )}

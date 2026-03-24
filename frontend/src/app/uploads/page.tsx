@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "../../lib/api";
 import { UserFileDetailPanel } from "../../components/upload/UserFileDetailPanel";
-import { TrashIcon, ArrowDownTrayIcon, EyeDropperIcon as ViewIcon, DocumentIcon, PhotoIcon, VideoCameraIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, ArrowDownTrayIcon, EyeIcon as ViewIcon, DocumentIcon, PhotoIcon, VideoCameraIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 
 interface Upload {
   id: string;
@@ -207,8 +207,8 @@ export default function UploadsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-gray-500">{fmtDate(u.created_at)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openDetail(u)} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors" title="View Details">
-                        <ViewIcon className="w-4 h-4" />
+                      <button onClick={() => openDetail(u)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors" title="Side Preview">
+                        <ViewIcon className="w-4 h-4" /> Preview
                       </button>
                       {u.status === "PROCESSED" && (
                         <button onClick={() => handleDownload(u)} disabled={downloadingId === u.id} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-50" title="Download">
