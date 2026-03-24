@@ -211,6 +211,33 @@ export default function UploadPage() {
     });
   }
 
+  function handleSimulateLoad() {
+    const dummyFiles: File[] = [];
+    const names = [
+      "financial_report_Q3.pdf",
+      "profile_picture_hi_res.jpg",
+      "marketing_video_v2.mp4",
+      "invoice_march_2026.pdf",
+      "transparent_logo_bg.png"
+    ];
+    const types = ["application/pdf", "image/jpeg", "video/mp4", "application/pdf", "image/png"];
+    
+    for (let i = 0; i < 5; i++) {
+      // Generate some dummy content (10KB each)
+      const content = new Uint8Array(10 * 1024).fill(Math.random() * 255);
+      const file = new File([content], names[i], { type: types[i] });
+      dummyFiles.push(file);
+    }
+    
+    addFiles(dummyFiles);
+
+    // Auto-trigger upload if everything goes well
+    setTimeout(() => {
+      const btn = document.getElementById("upload-all-btn");
+      if (btn) btn.click();
+    }, 100);
+  }
+
   const queuedCount = entries.filter((e) => e.status === "queued").length;
   const doneCount = entries.filter((e) => isTerminal(e.status)).length;
   const activeCount = entries.filter((e) => !isTerminal(e.status) && e.status !== "queued").length;
@@ -221,20 +248,29 @@ export default function UploadPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
         <div className="w-full flex flex-col items-center">
           <h1 className="text-3xl font-semibold text-center tracking-tight text-white mb-2">Deploy Pipelines</h1>
-          <p className="text-gray-400 text-center text-sm max-w-lg">
+          <p className="text-gray-400 text-center text-sm max-w-lg mb-6">
             Drag & drop images, PDFs, or videos to start your distributed job. They process independently in the background.
           </p>
+          <button 
+            onClick={handleSimulateLoad} 
+            className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-bold hover:from-blue-500 hover:to-indigo-500 transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] hover:-translate-y-0.5"
+          >
+            <svg className="w-5 h-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Simulate Heavy Load
+          </button>
         </div>
 
         {entries.length > 0 && (
-          <div className="flex gap-3 shrink-0">
+          <div className="flex gap-3 shrink-0 mt-6 md:mt-0 md:absolute md:right-8">
             {doneCount > 0 && (
               <button onClick={handleClearDone} className="px-4 py-2 border border-white/10 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/5 transition-colors">
                 Clear Done
               </button>
             )}
             {queuedCount > 0 && (
-              <button onClick={handleUploadAll} className="px-4 py-2 bg-white text-black rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors">
+              <button id="upload-all-btn" onClick={handleUploadAll} className="px-4 py-2 bg-white text-black rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors">
                 Upload {queuedCount} file{queuedCount !== 1 ? "s" : ""}
               </button>
             )}
