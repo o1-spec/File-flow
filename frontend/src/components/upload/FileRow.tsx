@@ -62,16 +62,16 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
     <div
       className={`relative w-full border rounded-xl overflow-hidden mb-3 transition-colors ${
         isFailed
-          ? "border-red-500/30 bg-red-500/[0.02]"
+          ? "border-red-500/30 bg-red-500/2"
           : "border-white/10 bg-[#0a0a0a]"
       }`}
     >
       <div className="flex items-center px-4 py-3 gap-4">
-        <div className="flex-shrink-0 text-gray-400 opacity-60">
+        <div className="shrink-0 text-gray-400 opacity-60">
           <FileIcon type={entry.file.type} />
         </div>
         
-        <div className="flex-grow min-w-0">
+        <div className="grow min-w-0">
           <div className="text-sm font-medium text-white truncate" title={entry.file.name}>
             {entry.file.name}
           </div>
@@ -169,7 +169,7 @@ export function FileRow({ entry, onRemove, onDownload }: FileRowProps) {
       )}
 
       {hasRecord && expanded && (
-        <div className="px-4 pb-4 border-t border-white/5 pt-4 bg-white/[0.01]">
+        <div className="px-4 pb-4 border-t border-white/5 pt-4 bg-white/1">
           {entry.status === "PROCESSED" && (
             <div className="mb-4 flex flex-col bg-black/20 rounded-xl border border-white/5 overflow-hidden">
               {previewLoading ? (
