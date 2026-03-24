@@ -1,7 +1,7 @@
 // Minimal API helper for the file-processing backend
 // Attaches Authorization header from localStorage when available.
 
-const BASE = 'http://localhost:4000';
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function authHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {};

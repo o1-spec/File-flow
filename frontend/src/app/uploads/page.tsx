@@ -109,7 +109,7 @@ export default function UploadsPage() {
     setDownloadingId(upload.id);
     try {
       const token = localStorage.getItem("token") ?? "";
-      const res = await fetch(`http://localhost:4000/uploads/${upload.id}/download`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/uploads/${upload.id}/download`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Download failed");

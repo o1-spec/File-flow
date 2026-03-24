@@ -26,7 +26,7 @@ export const ACCEPTED = [
 ];
 export const ACCEPTED_EXT = ".png, .jpg, .jpeg, .pdf, .mp4, .mov";
 export const STEPS = ["Start", "Transfer", "Processing", "Complete"];
-export const BASE = "http://localhost:4000";
+export const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export function uid(): string {
   return Math.random().toString(36).slice(2);
