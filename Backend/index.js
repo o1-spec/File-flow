@@ -29,6 +29,7 @@ app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes("render.com") ? { rejectUnauthorized: false } : false
 });
 
 const redis = new Redis(process.env.REDIS_URL);
@@ -104,8 +105,14 @@ app.post("/auth/register", async (req, res) => {
       `INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)`,
       [userId, email.toLowerCase(), passwordHash]
     );
-  } catch {
-    return res.status(409).json({ error: "Email already registered" });
+  } catch (err) {
+    // 23505 = unique_violation: the email column has a UNIQUE constraint
+    if (err.code === "23505") {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+    // Any other DB error (connection down, table missing, etc.)
+    logger.error("register.db_error", { error: err.message, code: err.code });
+    return res.status(500).json({ error: "Registration failed. Please try again." });
   }
 
   res.json({ userId });

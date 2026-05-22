@@ -21,7 +21,10 @@ import {
 import { moveToDLQ } from "./src/dlq.js";
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes("render.com") ? { rejectUnauthorized: false } : false
+});
 const redis = new Redis(process.env.REDIS_URL);
 
 const WORKER_ID = `worker-${process.pid}`;
