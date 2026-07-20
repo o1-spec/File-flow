@@ -27,9 +27,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const isLocalDb =
+  !process.env.DATABASE_URL ||
+  process.env.DATABASE_URL.includes("localhost") ||
+  process.env.DATABASE_URL.includes("127.0.0.1") ||
+  process.env.DATABASE_URL.includes("@postgres:5432");
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes("render.com") ? { rejectUnauthorized: false } : false
+  ssl: isLocalDb ? false : { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+pool.on("error", (err) => {
+  logger.error("Unexpected error on idle PostgreSQL client", { error: err.message });
 });
 
 const redis = new Redis(process.env.REDIS_URL);
