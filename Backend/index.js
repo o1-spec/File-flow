@@ -138,29 +138,34 @@ app.post("/auth/login", async (req, res) => {
     return res.status(400).json({ error: "email and password are required" });
   }
 
-  const result = await pool.query(
-    `SELECT id, email, password_hash FROM users WHERE email = $1`,
-    [email.toLowerCase()]
-  );
+  try {
+    const result = await pool.query(
+      `SELECT id, email, password_hash FROM users WHERE email = $1`,
+      [email.toLowerCase()]
+    );
 
-  if (result.rowCount === 0) {
-    return res.status(401).json({ error: "Invalid credentials" });
+    if (result.rowCount === 0) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const user = result.rows[0];
+    const ok = await bcrypt.compare(password, user.password_hash);
+
+    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+
+    const isAdmin = ADMIN_EMAILS.has(user.email.toLowerCase());
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({ token, isAdmin });
+  } catch (err) {
+    logger.error("login.db_error", { error: err.message, code: err.code });
+    res.status(500).json({ error: "Login failed due to database error. Please try again." });
   }
-
-  const user = result.rows[0];
-  const ok = await bcrypt.compare(password, user.password_hash);
-
-  if (!ok) return res.status(401).json({ error: "Invalid credentials" });
-
-  const isAdmin = ADMIN_EMAILS.has(user.email.toLowerCase());
-
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, isAdmin },
-    process.env.JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-
-  res.json({ token, isAdmin });
 });
 
 // ---------- UPLOADS ----------

@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "test-s3": "node test-s3.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",
