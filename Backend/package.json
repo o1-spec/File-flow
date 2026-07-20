@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node index.js",
-    "start": "node index.js",
+    "start": "node init-db.js && node index.js",
     "test-s3": "node test-s3.js"
   },
   "dependencies": {

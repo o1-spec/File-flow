@@ -27,15 +27,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const isLocalDb =
-  !process.env.DATABASE_URL ||
-  process.env.DATABASE_URL.includes("localhost") ||
-  process.env.DATABASE_URL.includes("127.0.0.1") ||
-  process.env.DATABASE_URL.includes("@postgres:5432");
+function getSslConfig(dbUrl) {
+  if (!dbUrl) return false;
+  if (
+    dbUrl.includes("localhost") ||
+    dbUrl.includes("127.0.0.1") ||
+    dbUrl.includes("@postgres:5432")
+  ) {
+    return false;
+  }
+  try {
+    const parsed = new URL(dbUrl);
+    if (parsed.hostname.startsWith("dpg-") && !parsed.hostname.includes(".")) {
+      return false;
+    }
+  } catch (e) {
+    if (dbUrl.includes("@dpg-") && !dbUrl.includes(".render.com")) {
+      return false;
+    }
+  }
+  return { rejectUnauthorized: false };
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: isLocalDb ? false : { rejectUnauthorized: false },
+  ssl: getSslConfig(process.env.DATABASE_URL),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
