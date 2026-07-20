@@ -1,7 +1,5 @@
 # ⚡️ FileFlow: Distributed Multimedia Pipeline Edge Router 
 
-> **Built for the DevCareer × Raenest Freelancer Hackathon 🚀**
-
 **Live Demo:** https://fileflow-frontend.vercel.app/  
 **Architecture Deep Dive:** [View ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -19,9 +17,9 @@ FileFlow relies on a distributed microservice architecture to allow the Gateway 
 4. **MinIO (S3 Compatible):** High-availability block storage containing the "Raw Ingest" and "Processed Outputs".
 5. **Background Workers:** A fleet of parallel, deployable Node instances polling the Redis queue. They securely stream from S3, perform necessary processing operations, push the mutated delta back to S3, and mark job completion.
 
-## 🚀 One-Click "Judge-Ready" Demo
+## 🚀 Getting Started
 
-Want to test it out? 
+Follow these steps to run the complete environment locally:
 
 ### 1. Boot up Infrastructure (Postgres, Redis, MinIO)
 ```bash
@@ -30,7 +28,7 @@ docker-compose up -d
 
 ### 2. Start the Backend API (Terminal 1)
 ```bash
-cd backend
+cd Backend
 npm install
 npm run dev
 ```
@@ -49,12 +47,13 @@ npm install
 npm run dev
 ```
 
-**🎬 How to evaluate**: Open **[http://localhost:3000](http://localhost:3000)** and register an account. On the Upload page, click the **Simulate Heavy Load** button. This will automatically inject multiple files into the ecosystem, immediately proving out the distributed S3 upload process, the Redis background queue parsing, the concurrent Node worker computation, and the real-time SSE frontend updates all simultaneously without manual file wrangling!
+**🎬 How to test**: Open **[http://localhost:3000](http://localhost:3000)** and register an account. On the Upload page, click the **Simulate Heavy Load** button. This will automatically inject multiple files into the ecosystem, demonstrating the distributed S3 upload process, Redis background queue parsing, concurrent Node worker computation, and real-time SSE frontend updates simultaneously!
 
-## 🛠 Hackathon Tech Stack
+## 🛠 Tech Stack
 
 - **Frontend:** Next.js 15, Tailwind CSS, Built-in Real-time Server Sent Events (SSE).
 - **Backend Edge:** Node.js, Express.js, Postgres (`pg`), AWS SDK.
 - **Task Queue:** Redis, BullMQ.
 - **Background Worker:** Standalone Node.js processes pulling directly from distributed streams.
 - **Storage:** MinIO object storage.
+

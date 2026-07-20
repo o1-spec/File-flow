@@ -17,7 +17,7 @@ export default function Home() {
         <div className="relative z-10 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-both">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/3 border border-white/10 text-xs font-medium text-gray-300 backdrop-blur-md mb-8 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            DevCareers × Raenest Hackathon 2026
+            Distributed Multimedia Pipeline Edge Router
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold max-w-5xl tracking-tighter leading-[1.1] mb-6">
@@ -146,7 +146,7 @@ export default function Home() {
         </div>
         
         <div className="w-full max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center text-gray-600 font-light border-t border-white/10 pt-8">
-          <p className="mb-4 sm:mb-0">© 2026 FileFlow & DevCareers Hackathon.</p>
+          <p className="mb-4 sm:mb-0">© 2026 FileFlow. All rights reserved.</p>
           <div className="flex gap-4">
             <span className="flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
