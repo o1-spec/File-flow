@@ -1,10 +1,10 @@
-import { AdminUpload } from "@/types/admin";
+import { AdminUploadDetail } from "@/types/admin";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { StatusBadge } from "@/components/StatusBadge";
 import { fmtDate } from "@/lib/formatters";
 
 interface Props {
-  upload: AdminUpload;
+  upload: AdminUploadDetail;
   onClose: () => void;
 }
 
@@ -53,11 +53,11 @@ export function UploadDetailPanel({ upload, onClose }: Props) {
               <span className="text-gray-500">MIME Type</span>
               <span className="text-gray-300 bg-white/5 w-fit px-2 py-0.5 rounded text-xs font-mono">{upload.mime_type}</span>
             </div>
-            {(upload as any).processed_url && (
+            {upload.processed_url && (
               <div className="flex flex-col gap-1 text-sm mt-3 pt-3 border-t border-white/10">
                 <span className="text-gray-500">Processed URL</span>
-                <a href={(upload as any).processed_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline break-all text-xs">
-                  {(upload as any).processed_url}
+                <a href={upload.processed_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline break-all text-xs">
+                  {upload.processed_url}
                 </a>
               </div>
             )}
@@ -69,11 +69,11 @@ export function UploadDetailPanel({ upload, onClose }: Props) {
                 </span>
               </div>
             )}
-            {(upload as any).metadata && typeof (upload as any).metadata === 'object' && Object.keys((upload as any).metadata).length > 0 && (
+            {upload.metadata && typeof upload.metadata === 'object' && Object.keys(upload.metadata).length > 0 && (
               <div className="flex flex-col gap-1 text-sm mt-3 pt-3 border-t border-white/10">
                 <span className="text-gray-500 mb-1">Metadata</span>
                 <pre className="text-xs text-gray-400 bg-black/40 p-3 rounded-lg border border-white/5 overflow-x-auto">
-                  {JSON.stringify((upload as any).metadata, null, 2)}
+                  {JSON.stringify(upload.metadata, null, 2)}
                 </pre>
               </div>
             )}

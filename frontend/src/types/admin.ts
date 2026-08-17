@@ -71,6 +71,8 @@ export interface AdminUploadDetail extends AdminUpload {
   raw_key: string | null;
   processed_key: string | null;
   user_email: string;
+  processed_url?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AdminUser {
@@ -82,6 +84,7 @@ export interface AdminUser {
   failed_uploads: number;
   storage_bytes: number;
   last_upload_at: string | null;
+  is_admin?: boolean;
 }
 
 export const ALL_STATUSES = ["CREATED", "UPLOADED", "PROCESSING", "PROCESSED", "FAILED"] as const;

@@ -13,8 +13,10 @@ export default function Topbar() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
-    setLoggedIn(!!localStorage.getItem("token"));
-    setIsAdmin(localStorage.getItem("isAdmin") === "1");
+    queueMicrotask(() => {
+      setLoggedIn(!!localStorage.getItem("token"));
+      setIsAdmin(localStorage.getItem("isAdmin") === "1");
+    });
   }, [pathname]);
 
   function confirmLogout() {
@@ -39,20 +41,20 @@ export default function Topbar() {
             <>
               <Link
                 href="/upload"
-                className={`transition-colors py-1.5 px-3 rounded-md \${pathname === "/upload" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
+                className={`transition-colors py-1.5 px-3 rounded-md ${pathname === "/upload" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
               >
                 Upload
               </Link>
               <Link
                 href="/uploads"
-                className={`transition-colors py-1.5 px-3 rounded-md \${pathname === "/uploads" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
+                className={`transition-colors py-1.5 px-3 rounded-md ${pathname === "/uploads" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
               >
                 My Files
               </Link>
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className={`transition-colors py-1.5 px-3 rounded-md \${pathname.startsWith("/admin") ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
+                  className={`transition-colors py-1.5 px-3 rounded-md ${pathname.startsWith("/admin") ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
                 >
                   Dashboard
                 </Link>
@@ -68,7 +70,7 @@ export default function Topbar() {
             <>
               <Link
                 href="/login"
-                className={`transition-colors py-1.5 px-3 rounded-md \${pathname === "/login" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
+                className={`transition-colors py-1.5 px-3 rounded-md ${pathname === "/login" ? "text-white bg-white/10" : "text-gray-400 hover:text-white"}`}
               >
                 Log In
               </Link>
@@ -91,7 +93,7 @@ export default function Topbar() {
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Sign out?</h3>
             <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-              You'll need to log back in to access your file pipeline and dashboard.
+              You&apos;ll need to log back in to access your file pipeline and dashboard.
             </p>
             <div className="flex gap-3">
               <button className="flex-1 py-2.5 rounded-lg border border-white/10 text-white font-medium hover:bg-white/5 transition-colors" onClick={() => setShowLogoutModal(false)}>

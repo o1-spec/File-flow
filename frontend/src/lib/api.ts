@@ -183,7 +183,7 @@ export async function getAdminUsers() {
   return handleJSONResponse(res);
 }
 
-export default {
+const api = {
   register,
   login,
   startUpload,
@@ -203,3 +203,5 @@ export default {
   deleteAdminUpload,
   getAdminUsers,
 };
+
+export default api;

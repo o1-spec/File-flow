@@ -14,11 +14,14 @@ function Stat({ label, value, accent, danger }: { label: string; value: number |
   );
 }
 
+const emptyCounts: JobCounts = { waiting: 0, active: 0, failed: 0, completed: 0 };
+
 function QueueCard({
   icon: Icon, name, counts, completedFromMetrics,
 }: {
-  icon: any; name: string; counts: JobCounts; completedFromMetrics?: number;
+  icon: React.ComponentType<{ className?: string }>; name: string; counts?: JobCounts; completedFromMetrics?: number;
 }) {
+  const currentCounts = counts ?? emptyCounts;
   return (
     <div className="flex flex-col p-6 rounded-xl border border-white/10 bg-[#0a0a0a]">
       <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
@@ -26,10 +29,10 @@ function QueueCard({
         <span className="text-sm font-semibold text-white tracking-wide">{name}</span>
       </div>
       <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-        <Stat label="Waiting" value={fmt(counts?.waiting)} />
-        <Stat label="Active" value={fmt(counts?.active)} accent />
+        <Stat label="Waiting" value={fmt(currentCounts.waiting)} />
+        <Stat label="Active" value={fmt(currentCounts.active)} accent />
         <Stat label="Done" value={completedFromMetrics ?? 0} />
-        <Stat label="Failed" value={fmt(counts?.failed)} danger={counts?.failed > 0} />
+        <Stat label="Failed" value={fmt(currentCounts.failed)} danger={currentCounts.failed > 0} />
       </div>
     </div>
   );
@@ -104,10 +107,10 @@ export function OverviewTab({ metrics }: { metrics: AdminMetrics | null }) {
       <div>
         <h3 className="text-lg font-semibold tracking-tight text-white mb-4">Queue Depths</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <QueueCard icon={PhotoIcon} name="Image" counts={q?.image!} completedFromMetrics={buckets?.image?.jobs_completed} />
-          <QueueCard icon={DocumentIcon} name="PDF" counts={q?.pdf!} completedFromMetrics={buckets?.pdf?.jobs_completed} />
-          <QueueCard icon={VideoCameraIcon} name="Video" counts={q?.video!} completedFromMetrics={buckets?.video?.jobs_completed} />
-          <QueueCard icon={BugAntIcon} name="DLQ" counts={q?.dlq!} completedFromMetrics={0} />
+          <QueueCard icon={PhotoIcon} name="Image" counts={q?.image} completedFromMetrics={buckets?.image?.jobs_completed} />
+          <QueueCard icon={DocumentIcon} name="PDF" counts={q?.pdf} completedFromMetrics={buckets?.pdf?.jobs_completed} />
+          <QueueCard icon={VideoCameraIcon} name="Video" counts={q?.video} completedFromMetrics={buckets?.video?.jobs_completed} />
+          <QueueCard icon={BugAntIcon} name="DLQ" counts={q?.dlq} completedFromMetrics={0} />
         </div>
       </div>
 

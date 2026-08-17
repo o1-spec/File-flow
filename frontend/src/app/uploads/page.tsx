@@ -135,7 +135,7 @@ export default function UploadsPage() {
     try {
       await api.deleteUpload(deleteTarget.id);
       setUploads((prev) => prev.filter((u) => u.id !== deleteTarget.id));
-    } catch (e) {
+    } catch {
       // Ignoring display toast logic for minimal simplicity
     } finally {
       setDeleting(false);
@@ -150,7 +150,7 @@ export default function UploadsPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">My File Pipelines</h1>
           <p className="text-gray-400 text-sm max-w-lg">
-            Review status, download assets, and monitor all pipelines you've provisioned.
+            Review status, download assets, and monitor all pipelines you&apos;ve provisioned.
           </p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/5 transition-colors" onClick={fetchUploads}>
@@ -172,7 +172,7 @@ export default function UploadsPage() {
         <div className="flex flex-col items-center justify-center p-12 border border-white/10 border-dashed rounded-2xl bg-white/1">
           <DocumentIcon className="w-12 h-12 text-gray-600 mb-4" />
           <h3 className="text-gray-300 font-medium mb-1">No files yet</h3>
-          <p className="text-gray-500 text-sm mb-6">You haven't uploaded or processed any files.</p>
+          <p className="text-gray-500 text-sm mb-6">You haven&apos;t uploaded or processed any files.</p>
           <button onClick={() => router.push("/upload")} className="px-4 py-2 bg-white text-black font-medium text-sm rounded-lg hover:bg-gray-200 transition-colors">
             Upload a File
           </button>
