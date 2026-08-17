@@ -214,25 +214,45 @@ export default function UploadPage() {
 
   function handleSimulateLoad() {
     const dummyFiles: File[] = [];
-    const names = [
-      "financial_report_Q3.pdf",
-      "profile_picture_hi_res.jpg",
-      "marketing_video_v2.mp4",
-      "invoice_march_2026.pdf",
-      "transparent_logo_bg.png"
-    ];
-    const types = ["application/pdf", "image/jpeg", "video/mp4", "application/pdf", "image/png"];
-    
-    for (let i = 0; i < 5; i++) {
-      // Generate some dummy content (10KB each)
-      const content = new Uint8Array(10 * 1024).fill(Math.random() * 255);
-      const file = new File([content], names[i], { type: types[i] });
-      dummyFiles.push(file);
-    }
-    
+
+    // Valid 1x1 PNG binary payload
+    const pngBytes = Uint8Array.from(
+      atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="),
+      (c) => c.charCodeAt(0)
+    );
+
+    // Valid 1x1 JPEG binary payload
+    const jpgBytes = Uint8Array.from(
+      atob("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="),
+      (c) => c.charCodeAt(0)
+    );
+
+    // Valid minimal PDF payload
+    const pdfContent = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/MediaBox[0 0 300 144]/Parent 2 0 R/Resources<<>>>>endobj
+xref
+0 4
+0000000000 65535 f 
+0000000010 00000 n 
+0000000053 00000 n 
+0000000102 00000 n 
+trailer<</Size 4/Root 1 0 R>>
+startxref
+178
+%%EOF`;
+    const pdfBytes = new TextEncoder().encode(pdfContent);
+
+    dummyFiles.push(new File([pdfBytes], "financial_report_Q3.pdf", { type: "application/pdf" }));
+    dummyFiles.push(new File([jpgBytes], "profile_picture_hi_res.jpg", { type: "image/jpeg" }));
+    dummyFiles.push(new File([pdfBytes], "invoice_march_2026.pdf", { type: "application/pdf" }));
+    dummyFiles.push(new File([pngBytes], "transparent_logo_bg.png", { type: "image/png" }));
+    dummyFiles.push(new File([pdfBytes], "quarterly_analytics.pdf", { type: "application/pdf" }));
+
     addFiles(dummyFiles);
 
-    // Auto-trigger upload if everything goes well
+    // Auto-trigger upload
     setTimeout(() => {
       const btn = document.getElementById("upload-all-btn");
       if (btn) btn.click();

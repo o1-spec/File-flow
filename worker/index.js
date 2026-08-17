@@ -120,7 +120,7 @@ function makeHandler(processor) {
     const locked = await pool.query(
       `UPDATE uploads
        SET status = 'PROCESSING', updated_at = NOW()
-       WHERE id = $1 AND status = 'UPLOADED'
+       WHERE id = $1 AND status IN ('UPLOADED', 'PROCESSING')
        RETURNING id`,
       [uploadId],
     );
