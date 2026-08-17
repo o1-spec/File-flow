@@ -24,7 +24,8 @@ export default function UploadPage() {
 
   useEffect(() => {
     if (!localStorage.getItem("token")) router.push("/login");
-    return () => sseRefs.current.forEach((es) => es.close());
+    const currentSseMap = sseRefs.current;
+    return () => currentSseMap.forEach((es) => es.close());
   }, [router]);
 
   function patch(localId: string, update: Partial<FileEntry>) {

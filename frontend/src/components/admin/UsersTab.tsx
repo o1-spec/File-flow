@@ -33,7 +33,7 @@ export function UsersTab({ users, loading, onRefresh }: { users: AdminUser[]; lo
                   <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">{u.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-white font-medium">{u.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {(u as any).is_admin ? (
+                    {u.is_admin ? (
                       <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold text-purple-400 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">
                         <CheckBadgeIcon className="w-3 h-3" /> Admin
                       </span>

@@ -42,9 +42,6 @@ export default function AdminPage() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [detailUpload, setDetailUpload] = useState<AdminUploadDetail | null>(null);
-  const [detailRawUrl, setDetailRawUrl] = useState<string | null>(null);
-  const [detailProcessedUrl, setDetailProcessedUrl] = useState<string | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUpload | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -124,18 +121,12 @@ export default function AdminPage() {
   }
 
   async function openDetail(upload: AdminUpload) {
-    setDetailLoading(true);
     setDetailUpload(null);
-    setDetailRawUrl(null);
-    setDetailProcessedUrl(null);
     try {
       const r = await api.getAdminUploadDetail(upload.id);
       const res = r as Record<string, unknown>;
       setDetailUpload(res.upload as AdminUploadDetail);
-      setDetailRawUrl(res.rawUrl as string | null);
-      setDetailProcessedUrl(res.processedUrl as string | null);
     } catch { /* ignored */ }
-    finally { setDetailLoading(false); }
   }
 
   async function handleDelete() {

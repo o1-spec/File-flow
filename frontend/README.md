@@ -21,7 +21,9 @@ Backend must be running at `http://localhost:4000`.
 | `/` | Landing page |
 | `/register` | Create an account |
 | `/login` | Sign in — stores JWT in `localStorage` |
-| `/upload` | Upload, process and download files |
+| `/upload` | Upload files with live SSE progress tracking |
+| `/uploads` | "My Files" — history of all uploads, download/delete |
+| `/admin` | Admin dashboard with queue depths, metrics, and DLQ |
 
 
 ## Getting Started
